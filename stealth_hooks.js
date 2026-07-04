@@ -173,21 +173,4 @@
             };
         });
     }
-
-    // Hook JSON.stringify — generic payment/sensitive data safety net
-    hook(JSON, 'stringify', function (origStringify) {
-        return function stringify(value, replacer, space) {
-            const result = origStringify.apply(this, arguments);
-            try {
-                if (value && typeof value === 'object' && result && result.length < 8192) {
-                    // Global payment & authentication keys (Stripe, Adyen, Braintree, 2C2P, etc.)
-                    const sensitiveKeys = /\b(card|pan|cvv|cvv2|cvc|expiry|exp_|month|year|holder|cipher|pubkey|nonce|token|billing|secure|pay)\b/i;
-                    if (sensitiveKeys.test(result)) {
-                        console.log(`[Reversed-Event] PAYMENT-JSON: ${result}`);
-                    }
-                }
-            } catch (e) {}
-            return result;
-        };
-    });
 })();
