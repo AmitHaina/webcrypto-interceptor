@@ -56,6 +56,23 @@ function formatHookConsole(text) {
         ]
     });
 
+    let shuttingDown = false;
+    const shutdown = async (signal) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`\n${C.yellow}Shutting down (${signal})...${C.reset}`);
+        try { await browser.close(); } catch (e) {}
+        process.exit(0);
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    browser.on('disconnected', () => {
+        if (!shuttingDown) {
+            console.log(`\n${C.yellow}Browser disconnected. Exiting.${C.reset}`);
+            process.exit(0);
+        }
+    });
+
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
 
