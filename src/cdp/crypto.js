@@ -30,8 +30,14 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
         return `   at ${f.functionName || '<anonymous>'} (${file}:${f.location.lineNumber + 1}:${f.location.columnNumber + 1})`;
     }).slice(0, 5).join('\n');
 
+    const MAX_PROPS_PER_SCOPE = 80;
+    let closuresSeen = 0;
     for (const scope of (caller.scopeChain || [])) {
         if (!['local', 'closure', 'block'].includes(scope.type)) continue;
+        if (scope.type === 'closure') {
+            if (closuresSeen >= 1) continue;
+            closuresSeen++;
+        }
         const scopeObjectId = scope.object && scope.object.objectId;
         if (!scopeObjectId) continue;
 
@@ -40,7 +46,7 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
             const resp = await cdpSession.send('Runtime.getProperties', {
                 objectId: scopeObjectId, ownProperties: true
             });
-            props = resp.result || [];
+            props = (resp.result || []).slice(0, MAX_PROPS_PER_SCOPE);
         } catch (e) { continue; }
 
         for (const prop of props) {
