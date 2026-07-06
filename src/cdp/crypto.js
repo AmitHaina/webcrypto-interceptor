@@ -11,7 +11,7 @@ const DECODE_FN = `function(){
     var hex = '', utf8 = '';
     var limit = Math.min(u.length, 512);
     for(var i = 0; i < limit; i++){ hex += (u[i] < 16 ? '0' : '') + u[i].toString(16); }
-    try { utf8 = new TextDecoder('utf-8', {fatal: false}).decode(u.slice(0, 2048)); } catch(e){}
+    try { utf8 = new TextDecoder('utf-8', {fatal: false}).decode(u.subarray(0, 2048)); } catch(e){}
     return { length: u.length, hex: hex, utf8: utf8 };
 }`;
 
