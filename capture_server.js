@@ -146,11 +146,21 @@ async function attachCryptoLoggerToSession(cdpSession, targetLabel) {
     } catch (e) {}
     try {
         await cdpSession.send('Network.enable');
-        // Let's capture HTTP response bodies to see what the server responds with
+        // Capture HTTP response bodies for interesting endpoints:
+        //  - Payment / auth (2c2p, stripe, checkCard, /pay, /token, /auth)
+        //  - Streaming resolvers (/player, /getVideo, /source, /manifest)
+        //  - HLS/DASH playlists (.m3u8, .mpd)
+        //  - AES key files (.key, /key/, keyformat identifiers)
+        const RESP_KEYWORDS = [
+            'payment', '2c2p', 'checkcard', '/pay', '/token', '/auth',
+            '/player', 'getvideo', '/source', '/manifest', '/stream',
+            '.m3u8', '.mpd', '.key', '/key/', 'keyformat'
+        ];
         cdpSession.on('Network.responseReceived', async (params) => {
             const response = params.response;
             const url = response.url;
-            if (shortUrl(url).includes('payment') || shortUrl(url).includes('2c2p') || shortUrl(url).includes('checkCard')) {
+            const lower = url.toLowerCase();
+            if (RESP_KEYWORDS.some(k => lower.includes(k))) {
                 try {
                     const bodyObj = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
                     console.log(`\n${C.yellow}[📥 NET RESP] ${response.status} ${url}${C.reset}`);
