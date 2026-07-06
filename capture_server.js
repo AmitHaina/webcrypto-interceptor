@@ -300,5 +300,5 @@ async function attachCryptoLoggerToSession(cdpSession, targetLabel) {
     } catch (e) {
         console.warn(`${C.yellow}⚠️  Navigation timeout (page may still be usable):${C.reset} ${e.message}`);
     }
-    console.log(`\n${C.bold}🌟 STREAMING (Ctrl+C to stop). Book flight → fill card → submit → watch for [🔓 CRYPTO BOUNDARY]${C.reset}\n`);
+    console.log(`\n${C.bold}🌟 STREAMING (Ctrl+C to stop). Interact with the page to trigger events. Watch for [🔓 CRYPTO BOUNDARY], [🌐 NET] and [💾 STORAGE STATE].${C.reset}\n`);
 })();

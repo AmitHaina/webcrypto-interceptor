@@ -31,14 +31,28 @@
     };
     secureObject(Function.prototype.toString, 'name', 'toString', false);
 
-    // Only log requests to interesting endpoints (skip trackers/analytics)
+    // Only log requests to interesting endpoints (skip trackers/analytics/CDN chatter)
     function isInterestingUrl(url) {
         if (!url) return false;
-        const noise = ['doubleclick', 'google-analytics', 'googletagmanager', 'clarity.ms',
-                      'facebook.com', 'facebook.net', 'linkedin.com', 'google.com/ccm',
-                      'google.com/measurement', 'google.com/rmkt', 'googleadservices',
-                      'analytics.google', '/collect?', '/collect ', 'gtag/', 'forter.com'];
-        return !noise.some(n => url.includes(n));
+        const noise = [
+            // Ad networks & analytics
+            'doubleclick', 'google-analytics', 'googletagmanager', 'clarity.ms',
+            'facebook.com', 'facebook.net', 'linkedin.com', 'google.com/ccm',
+            'google.com/measurement', 'google.com/rmkt', 'googleadservices',
+            'analytics.google', '/collect?', '/collect ', 'gtag/', 'forter.com',
+            'sharethis.com', 'crwdcntrl.net', 'scorecardresearch.com', 'quantserve.com',
+            'hotjar.com', 'mixpanel.com', 'segment.io', 'segment.com', 'amplitude.com',
+            'sentry.io', 'bugsnag.com', 'newrelic.com', 'datadoghq.com',
+            // Cloudflare telemetry & challenges
+            '/cdn-cgi/rum', '/cdn-cgi/challenge-platform', '/cdn-cgi/beacon',
+            '/cdn-cgi/trace', '/cdn-cgi/zaraz',
+            // Common static asset extensions
+            '.woff', '.woff2', '.ttf', '.otf', '.eot',
+            '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
+            '.css', '.map'
+        ];
+        const lower = url.toLowerCase();
+        return !noise.some(n => lower.includes(n));
     }
 
     // Hook fetch — log outbound bodies to interesting endpoints
