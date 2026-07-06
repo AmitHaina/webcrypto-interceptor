@@ -66,9 +66,6 @@
         };
     } catch (e) {}
 
-    try {
-    } catch (e) {}
-
     function isInterestingUrl(url) {
         if (!url) return false;
         const noise = [
