@@ -31,6 +31,58 @@
     };
     secureObject(Function.prototype.toString, 'name', 'toString', false);
 
+    // ============================================================
+    // ANTI-ANTI-DEBUG — neutralize common `debugger;` trap patterns
+    // ============================================================
+    try {
+        // 1. Kill `new Function('debugger')` and `Function('debugger').call()`
+        const OrigFunction = window.Function;
+        const FunctionProxy = new Proxy(OrigFunction, {
+            construct(target, args) {
+                const src = args[args.length - 1];
+                if (typeof src === 'string' && /debugger/i.test(src)) {
+                    return function () {}; // no-op
+                }
+                return Reflect.construct(target, args);
+            },
+            apply(target, thisArg, args) {
+                const src = args[args.length - 1];
+                if (typeof src === 'string' && /debugger/i.test(src)) {
+                    return function () {}; // no-op
+                }
+                return Reflect.apply(target, thisArg, args);
+            }
+        });
+        // Preserve Function.prototype identity
+        Object.defineProperty(FunctionProxy, 'prototype', { value: OrigFunction.prototype });
+        window.Function = FunctionProxy;
+    } catch (e) {}
+
+    try {
+        // 2. Filter `debugger` out of setInterval/setTimeout string args
+        const origSetInterval = window.setInterval;
+        window.setInterval = function (fn, ms) {
+            if (typeof fn === 'string' && /debugger/i.test(fn)) return 0;
+            if (typeof fn === 'function' && /debugger/i.test(backupToString.call(fn))) return 0;
+            return origSetInterval.apply(this, arguments);
+        };
+        const origSetTimeout = window.setTimeout;
+        window.setTimeout = function (fn, ms) {
+            if (typeof fn === 'string' && /debugger/i.test(fn)) return 0;
+            if (typeof fn === 'function' && /debugger/i.test(backupToString.call(fn))) return 0;
+            return origSetTimeout.apply(this, arguments);
+        };
+    } catch (e) {}
+
+    try {
+        // 3. Spoof timing-based devtools detection (performance.now diff checks)
+        //    Many anti-debug scripts measure elapsed time around a `debugger;`
+        //    statement and assume devtools is open if elapsed > threshold.
+        //    We can't fully hide, but we can reduce the delta by making now()
+        //    return values very close together during suspicious tight loops.
+        //    (Kept minimal — enable only if needed to avoid breaking real code.)
+    } catch (e) {}
+
     // Only log requests to interesting endpoints (skip trackers/analytics only)
     function isInterestingUrl(url) {
         if (!url) return false;

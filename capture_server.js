@@ -134,6 +134,16 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
 async function attachCryptoLoggerToSession(cdpSession, targetLabel) {
     try { await cdpSession.send('Runtime.enable'); } catch (e) {}
     try { await cdpSession.send('Debugger.enable'); } catch (e) {}
+    // Anti-anti-debug: blackbox every script so `debugger;` statements in loops
+    // don't pause our session. Our function-call breakpoints on native
+    // crypto.subtle.* still fire because they target the native function itself.
+    try {
+        await cdpSession.send('Debugger.setBlackboxPatterns', { patterns: ['.*'] });
+    } catch (e) {}
+    // Also tell the debugger to skip past any debugger statements it does encounter
+    try {
+        await cdpSession.send('Debugger.setPauseOnExceptions', { state: 'none' });
+    } catch (e) {}
     try {
         await cdpSession.send('Network.enable');
         // Let's capture HTTP response bodies to see what the server responds with
