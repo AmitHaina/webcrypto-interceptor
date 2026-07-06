@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const originalFunctions = new Map();
+    const originalFunctions = new WeakMap();
     const backupToString = Function.prototype.toString;
 
     function secureObject(obj, prop, value, writable = true) {
@@ -180,7 +180,7 @@
             return function setItem(key, value) {
                 try {
                     const type = this === localStorage ? 'localStorage' : 'sessionStorage';
-                    const interestingKeys = /\b(token|jwt|session|uuid|device|visitor|cipher|key|pan|card|cvv|auth|pay)\b/i;
+                    const interestingKeys = /(token|jwt|session|uuid|device|visitor|cipher|key|pan|card|cvv|auth|pay|bearer|secret|refresh)/i;
                     if (interestingKeys.test(key) || interestingKeys.test(value)) {
                         console.log(`[Reversed-Event] STORAGE [${type}] set ${key} = ${typeof value === 'string' ? value.substring(0, 500) : value}`);
                     }
@@ -191,30 +191,82 @@
     }
 
     if (typeof XMLHttpRequest !== 'undefined') {
+        const xhrMeta = new WeakMap();
         hook(XMLHttpRequest.prototype, 'open', function (origOpen) {
             return function open(method, url) {
-                this.__url = url; this.__method = method;
+                xhrMeta.set(this, { url, method });
                 return origOpen.apply(this, arguments);
             };
         });
         hook(XMLHttpRequest.prototype, 'send', function (origSend) {
             return function send(body) {
                 try {
-                    if (isInterestingUrl(this.__url)) {
-                        const tag = isVideoUrl(this.__url) ? 'VIDEO' : 'XHR';
+                    const meta = xhrMeta.get(this) || {};
+                    if (isInterestingUrl(meta.url)) {
+                        const tag = isVideoUrl(meta.url) ? 'VIDEO' : 'XHR';
                         if (body) {
                             let payload = body;
                             if (payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)) {
                                 payload = `[binary ${payload.byteLength || payload.length}B]`;
                             }
-                            console.log(`[Reversed-Event] ${tag} [${this.__method || 'POST'}] ${this.__url} body: ${payload}`);
+                            console.log(`[Reversed-Event] ${tag} [${meta.method || 'POST'}] ${meta.url} body: ${payload}`);
                         } else {
-                            console.log(`[Reversed-Event] ${tag} [${this.__method || 'GET'}] ${this.__url}`);
+                            console.log(`[Reversed-Event] ${tag} [${meta.method || 'GET'}] ${meta.url}`);
                         }
                     }
                 } catch (e) {}
                 return origSend.apply(this, arguments);
             };
         });
+    }
+
+    if (typeof Worker !== 'undefined' && Worker.prototype && Worker.prototype.postMessage) {
+        hook(Worker.prototype, 'postMessage', function (origPost) {
+            return function postMessage(msg) {
+                try {
+                    let preview;
+                    if (typeof msg === 'string') preview = msg.substring(0, 500);
+                    else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
+                    else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
+                    console.log(`[Reversed-Event] WORKER postMessage: ${preview}`);
+                } catch (e) {}
+                return origPost.apply(this, arguments);
+            };
+        });
+    }
+
+    if (typeof MessagePort !== 'undefined' && MessagePort.prototype && MessagePort.prototype.postMessage) {
+        hook(MessagePort.prototype, 'postMessage', function (origPost) {
+            return function postMessage(msg) {
+                try {
+                    let preview;
+                    if (typeof msg === 'string') preview = msg.substring(0, 500);
+                    else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
+                    else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
+                    console.log(`[Reversed-Event] PORT postMessage: ${preview}`);
+                } catch (e) {}
+                return origPost.apply(this, arguments);
+            };
+        });
+    }
+
+    if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        const origCreate = URL.createObjectURL;
+        URL.createObjectURL = function createObjectURL(obj) {
+            const url = origCreate.apply(this, arguments);
+            try {
+                if (obj instanceof Blob) {
+                    console.log(`[Reversed-Event] BLOB URL ${url} type=${obj.type} size=${obj.size}B`);
+                    if (obj.size < 200000 && (/javascript|json|text|wasm/i.test(obj.type) || obj.type === '')) {
+                        obj.text().then(txt => {
+                            const snippet = txt.length > 800 ? txt.substring(0, 800) + '...' : txt;
+                            console.log(`[Reversed-Event] BLOB CONTENT ${url}: ${snippet}`);
+                        }).catch(() => {});
+                    }
+                }
+            } catch (e) {}
+            return url;
+        };
+        secureObject(URL.createObjectURL, 'name', 'createObjectURL', false);
     }
 })();

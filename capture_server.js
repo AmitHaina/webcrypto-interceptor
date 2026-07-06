@@ -25,6 +25,9 @@ function formatHookConsole(text) {
     if (text.includes('PAYMENT-JSON')) return `${C.hlgrn}[💳 PAYMENT-JSON]${C.reset} ${C.green}${stripped.replace('PAYMENT-JSON: ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] VIDEO')) return `${C.magenta}[🎬 VIDEO]${C.reset} ${C.green}${stripped.replace('VIDEO ', '')}${C.reset}`;
     if (text.includes('WASAssembly.instantiate') || text.includes('[Reversed-Event] WASM')) return `${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${stripped}${C.reset}`;
+    if (text.includes('[Reversed-Event] BLOB CONTENT')) return `${C.hlgrn}[📄 BLOB CONTENT]${C.reset} ${C.green}${stripped.replace('BLOB CONTENT ', '')}${C.reset}`;
+    if (text.includes('[Reversed-Event] BLOB URL')) return `${C.cyan}[🗂️  BLOB URL]${C.reset} ${C.dim}${stripped.replace('BLOB URL ', '')}${C.reset}`;
+    if (text.includes('[Reversed-Event] WORKER') || text.includes('[Reversed-Event] PORT')) return `${C.magenta}[📨 MSG]${C.reset} ${C.green}${stripped}${C.reset}`;
     if (text.includes('STORAGE')) return `${C.yellow}[💾 STORAGE STATE]${C.reset} ${C.dim}${stripped}${C.reset}`;
     if (text.includes(' body: ') && !text.includes(' body: [binary')) return `${C.cyan}[🌐 NET]${C.reset} ${stripped}`;
     return `${C.blue}[⚓ EVENT]${C.reset} ${C.dim}${stripped}${C.reset}`;
