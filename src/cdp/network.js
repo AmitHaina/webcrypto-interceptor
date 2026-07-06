@@ -1,7 +1,21 @@
 const { C } = require('../util/colors');
 const { writeLog } = require('../util/log');
 const { extractContentKey, extractHlsKeyUri } = require('../util/decoders');
-const { RESP_KEYWORDS } = require('../config');
+const { RESP_KEYWORDS, SKIP_RESP_EXT, SKIP_RESP_CT } = require('../config');
+
+// Cross-session dedup: same URL+status logged only once within TTL
+const seenResponses = new Map();
+const DEDUP_TTL_MS = 5000;
+function alreadySeen(url, status) {
+    const key = status + ' ' + url;
+    const now = Date.now();
+    for (const [k, t] of seenResponses) {
+        if (now - t > DEDUP_TTL_MS) seenResponses.delete(k);
+    }
+    if (seenResponses.has(key)) return true;
+    seenResponses.set(key, now);
+    return false;
+}
 
 async function attachNetworkCapture(cdpSession) {
     try { await cdpSession.send('Network.enable'); } catch (e) { return; }
@@ -11,6 +25,10 @@ async function attachNetworkCapture(cdpSession) {
         const url = response.url;
         const lower = url.toLowerCase();
         if (!RESP_KEYWORDS.some(k => lower.includes(k))) return;
+        if (SKIP_RESP_EXT.test(lower)) return;
+        const ct = String((response.headers && (response.headers['content-type'] || response.headers['Content-Type'])) || '');
+        if (SKIP_RESP_CT.test(ct)) return;
+        if (alreadySeen(url, response.status)) return;
 
         let bodyObj;
         try {

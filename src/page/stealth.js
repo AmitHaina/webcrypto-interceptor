@@ -176,13 +176,20 @@
     }
 
     if (typeof Storage !== 'undefined') {
+        const analyticsNoise = /^(ph_|posthog|_ga|_gid|_gcl|_gac|_fbp|_fbc|_hj|hjid|hjsession|mp_|amplitude|mixpanel|_uetsid|_uetvid|utm_|__utm|_pk_|matomo|clarity|_scid)/i;
+        const interestingKeys = /(token|jwt|session|uuid|device|visitor|cipher|key|pan|card|cvv|auth|pay|bearer|secret|refresh|access_token|id_token)/i;
+        const lastStorage = new Map();
         hook(Storage.prototype, 'setItem', function (origSetItem) {
             return function setItem(key, value) {
                 try {
-                    const type = this === localStorage ? 'localStorage' : 'sessionStorage';
-                    const interestingKeys = /(token|jwt|session|uuid|device|visitor|cipher|key|pan|card|cvv|auth|pay|bearer|secret|refresh)/i;
-                    if (interestingKeys.test(key) || interestingKeys.test(value)) {
-                        console.log(`[Reversed-Event] STORAGE [${type}] set ${key} = ${typeof value === 'string' ? value.substring(0, 500) : value}`);
+                    if (!analyticsNoise.test(key) && (interestingKeys.test(key) || interestingKeys.test(String(value).substring(0, 200)))) {
+                        const type = this === localStorage ? 'localStorage' : 'sessionStorage';
+                        const val = typeof value === 'string' ? value : String(value);
+                        const sig = type + '|' + key + '|' + val.length + '|' + val.substring(0, 32);
+                        if (lastStorage.get(key) !== sig) {
+                            lastStorage.set(key, sig);
+                            console.log(`[Reversed-Event] STORAGE [${type}] set ${key} = ${val.substring(0, 300)}`);
+                        }
                     }
                 } catch (e) {}
                 return origSetItem.apply(this, arguments);
@@ -220,15 +227,26 @@
         });
     }
 
+    // React 18 scheduler uses MessagePort.postMessage(null) constantly to yield.
+    // Skip empty/null/tiny numeric messages that carry no useful data.
+    function isBoringMsg(msg) {
+        if (msg === null || msg === undefined) return true;
+        if (typeof msg === 'number' || typeof msg === 'boolean') return true;
+        if (typeof msg === 'string' && msg.length < 3) return true;
+        return false;
+    }
+
     if (typeof Worker !== 'undefined' && Worker.prototype && Worker.prototype.postMessage) {
         hook(Worker.prototype, 'postMessage', function (origPost) {
             return function postMessage(msg) {
                 try {
-                    let preview;
-                    if (typeof msg === 'string') preview = msg.substring(0, 500);
-                    else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
-                    else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
-                    console.log(`[Reversed-Event] WORKER postMessage: ${preview}`);
+                    if (!isBoringMsg(msg)) {
+                        let preview;
+                        if (typeof msg === 'string') preview = msg.substring(0, 500);
+                        else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
+                        else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
+                        console.log(`[Reversed-Event] WORKER postMessage: ${preview}`);
+                    }
                 } catch (e) {}
                 return origPost.apply(this, arguments);
             };
@@ -239,11 +257,13 @@
         hook(MessagePort.prototype, 'postMessage', function (origPost) {
             return function postMessage(msg) {
                 try {
-                    let preview;
-                    if (typeof msg === 'string') preview = msg.substring(0, 500);
-                    else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
-                    else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
-                    console.log(`[Reversed-Event] PORT postMessage: ${preview}`);
+                    if (!isBoringMsg(msg)) {
+                        let preview;
+                        if (typeof msg === 'string') preview = msg.substring(0, 500);
+                        else if (msg && msg.byteLength !== undefined) preview = `[binary ${msg.byteLength}B]`;
+                        else { try { preview = JSON.stringify(msg).substring(0, 500); } catch (e) { preview = '[unserializable]'; } }
+                        console.log(`[Reversed-Event] PORT postMessage: ${preview}`);
+                    }
                 } catch (e) {}
                 return origPost.apply(this, arguments);
             };
