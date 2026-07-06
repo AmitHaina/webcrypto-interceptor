@@ -165,12 +165,51 @@ async function attachCryptoLoggerToSession(cdpSession, targetLabel) {
                     const bodyObj = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
                     console.log(`\n${C.yellow}[📥 NET RESP] ${response.status} ${url}${C.reset}`);
                     if (bodyObj.body) {
-                        const preview = bodyObj.body.length > 1000 ? bodyObj.body.substring(0, 1000) + '...' : bodyObj.body;
+                        // CDP returns base64Encoded=true for binary payloads. Decode so
+                        // the terminal shows the real bytes (m3u8, SVG, keys, etc.)
+                        let body = bodyObj.body;
+                        if (bodyObj.base64Encoded) {
+                            try {
+                                body = Buffer.from(bodyObj.body, 'base64').toString('utf8');
+                                console.log(`   ${C.dim}(base64-decoded ${bodyObj.body.length}B \u2192 ${body.length}B)${C.reset}`);
+                            } catch (e) {
+                                body = bodyObj.body; // fallback to raw
+                            }
+                        }
+
+                        // Auto-decode 'ck'/'key'/'contentKey' fields (hex-escaped base64)
+                        try {
+                            const keyMatch = body.match(/"(ck|key|contentKey|contentkey|aesKey|aeskey)"\s*:\s*"([^"]+)"/i);
+                            if (keyMatch) {
+                                let v = keyMatch[2];
+                                // decode \xHH sequences
+                                if (/\\x[0-9a-fA-F]{2}/.test(v)) {
+                                    v = v.replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+                                }
+                                // if result looks like base64, decode
+                                let decoded = v;
+                                try {
+                                    const b = Buffer.from(v, 'base64').toString('utf8');
+                                    if (/^[0-9a-fA-F]{16,64}$/.test(b.trim())) decoded = b.trim();
+                                } catch (e) {}
+                                console.log(`   ${C.hlred}\ud83d\udd11 CONTENT KEY (${keyMatch[1]}): ${decoded}${C.reset}`);
+                                writeLog({ type: 'content_key', url, field: keyMatch[1], raw: keyMatch[2], decoded });
+                            }
+                        } catch (e) {}
+
+                        // Highlight HLS AES key URIs inside m3u8
+                        const keyUriMatch = body.match(/#EXT-X-KEY:[^\r\n]*URI="([^"]+)"[^\r\n]*(?:IV=(0x[0-9a-fA-F]+))?/i);
+                        if (keyUriMatch) {
+                            console.log(`   ${C.hlred}\ud83d\udd10 HLS AES KEY URI: ${keyUriMatch[1]}${keyUriMatch[2] ? '  IV=' + keyUriMatch[2] : ''}${C.reset}`);
+                            writeLog({ type: 'hls_key_ref', url, keyUri: keyUriMatch[1], iv: keyUriMatch[2] || null });
+                        }
+
+                        const preview = body.length > 1500 ? body.substring(0, 1500) + '...' : body;
                         console.log(`   ${C.dim}${preview}${C.reset}`);
-                        writeLog({ type: 'http_response', url, status: response.status, body: bodyObj.body });
+                        writeLog({ type: 'http_response', url, status: response.status, body });
                     }
                 } catch(err) {
-                    // Body might not be available or already consumed (e.g. non-GET, redirected)
+                    // Body might not be available or already consumed
                 }
             }
         });
