@@ -31,7 +31,7 @@
     };
     secureObject(Function.prototype.toString, 'name', 'toString', false);
 
-    // Only log requests to interesting endpoints (skip trackers/analytics/CDN chatter)
+    // Only log requests to interesting endpoints (skip trackers/analytics only)
     function isInterestingUrl(url) {
         if (!url) return false;
         const noise = [
@@ -43,16 +43,19 @@
             'sharethis.com', 'crwdcntrl.net', 'scorecardresearch.com', 'quantserve.com',
             'hotjar.com', 'mixpanel.com', 'segment.io', 'segment.com', 'amplitude.com',
             'sentry.io', 'bugsnag.com', 'newrelic.com', 'datadoghq.com',
-            // Cloudflare telemetry & challenges
+            // Cloudflare telemetry & challenges (NOT /cdn-cgi/scripts which may host real code)
             '/cdn-cgi/rum', '/cdn-cgi/challenge-platform', '/cdn-cgi/beacon',
-            '/cdn-cgi/trace', '/cdn-cgi/zaraz',
-            // Common static asset extensions
-            '.woff', '.woff2', '.ttf', '.otf', '.eot',
-            '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
-            '.css', '.map'
+            '/cdn-cgi/trace', '/cdn-cgi/zaraz'
         ];
         const lower = url.toLowerCase();
         return !noise.some(n => lower.includes(n));
+    }
+
+    // Flag URLs that look like streaming video / DRM content
+    function isVideoUrl(url) {
+        if (!url) return false;
+        return /\.(m3u8|mpd|ts|mp4|m4s|webm|mkv|key)(\?|$)/i.test(url)
+            || /\/(hls|dash|stream|manifest|segment|video|getVideo|playlist)/i.test(url);
     }
 
     // Hook fetch — log outbound bodies to interesting endpoints
@@ -61,6 +64,7 @@
             try {
                 const endpoint = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
                 if (isInterestingUrl(endpoint)) {
+                    const tag = isVideoUrl(endpoint) ? 'VIDEO' : 'fetch';
                     if (options && options.body) {
                         let payload = options.body;
                         if (payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)) {
@@ -72,9 +76,9 @@
                             for (let [k, v] of payload.entries()) parts.push(`${k}=${typeof v === 'string' ? v : '[file]'}`);
                             payload = parts.join('&');
                         }
-                        console.log(`[Reversed-Event] fetch [${options.method || 'GET'}] ${endpoint} body: ${payload}`);
+                        console.log(`[Reversed-Event] ${tag} [${options.method || 'GET'}] ${endpoint} body: ${payload}`);
                     } else {
-                        console.log(`[Reversed-Event] fetch [${(options && options.method) || 'GET'}] ${endpoint}`);
+                        console.log(`[Reversed-Event] ${tag} [${(options && options.method) || 'GET'}] ${endpoint}`);
                     }
                 }
             } catch (e) {}
@@ -172,14 +176,15 @@
             return function send(body) {
                 try {
                     if (isInterestingUrl(this.__url)) {
+                        const tag = isVideoUrl(this.__url) ? 'VIDEO' : 'XHR';
                         if (body) {
                             let payload = body;
                             if (payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)) {
                                 payload = `[binary ${payload.byteLength || payload.length}B]`;
                             }
-                            console.log(`[Reversed-Event] XHR [${this.__method || 'POST'}] ${this.__url} body: ${payload}`);
+                            console.log(`[Reversed-Event] ${tag} [${this.__method || 'POST'}] ${this.__url} body: ${payload}`);
                         } else {
-                            console.log(`[Reversed-Event] XHR [${this.__method || 'GET'}] ${this.__url}`);
+                            console.log(`[Reversed-Event] ${tag} [${this.__method || 'GET'}] ${this.__url}`);
                         }
                     }
                 } catch (e) {}

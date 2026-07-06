@@ -277,6 +277,8 @@ async function attachCryptoLoggerToSession(cdpSession, targetLabel) {
             
             if (text.includes('PAYMENT-JSON')) {
                 console.log(`${C.hlgrn}[💳 PAYMENT-JSON]${C.reset} ${C.green}${text.replace('[Reversed-Event] PAYMENT-JSON: ', '')}${C.reset}`);
+            } else if (text.includes('[Reversed-Event] VIDEO')) {
+                console.log(`${C.magenta}[🎬 VIDEO]${C.reset} ${C.green}${text.replace('[Reversed-Event] VIDEO ', '')}${C.reset}`);
             } else if (text.includes('WASAssembly.instantiate')) {
                 console.log(`${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${text.replace('[Reversed-Event] ', '')}${C.reset}`);
             } else if (text.includes('STORAGE')) {
