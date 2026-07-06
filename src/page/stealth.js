@@ -1,4 +1,3 @@
-// Minimal Signal-Focused Hooks for tracing, web sockets, fetch, XHR, storage and JSON
 (function () {
     'use strict';
 
@@ -22,7 +21,6 @@
         parentObj[propName] = hookedFn;
     }
 
-    // Defend Function.prototype.toString so hooks appear native to page inspections
     Function.prototype.toString = function toString() {
         if (originalFunctions.has(this)) {
             return backupToString.call(originalFunctions.get(this));
@@ -31,35 +29,29 @@
     };
     secureObject(Function.prototype.toString, 'name', 'toString', false);
 
-    // ============================================================
-    // ANTI-ANTI-DEBUG — neutralize common `debugger;` trap patterns
-    // ============================================================
     try {
-        // 1. Kill `new Function('debugger')` and `Function('debugger').call()`
         const OrigFunction = window.Function;
         const FunctionProxy = new Proxy(OrigFunction, {
             construct(target, args) {
                 const src = args[args.length - 1];
                 if (typeof src === 'string' && /debugger/i.test(src)) {
-                    return function () {}; // no-op
+                    return function () {};
                 }
                 return Reflect.construct(target, args);
             },
             apply(target, thisArg, args) {
                 const src = args[args.length - 1];
                 if (typeof src === 'string' && /debugger/i.test(src)) {
-                    return function () {}; // no-op
+                    return function () {};
                 }
                 return Reflect.apply(target, thisArg, args);
             }
         });
-        // Preserve Function.prototype identity
         Object.defineProperty(FunctionProxy, 'prototype', { value: OrigFunction.prototype });
         window.Function = FunctionProxy;
     } catch (e) {}
 
     try {
-        // 2. Filter `debugger` out of setInterval/setTimeout string args
         const origSetInterval = window.setInterval;
         window.setInterval = function (fn, ms) {
             if (typeof fn === 'string' && /debugger/i.test(fn)) return 0;
@@ -75,19 +67,11 @@
     } catch (e) {}
 
     try {
-        // 3. Spoof timing-based devtools detection (performance.now diff checks)
-        //    Many anti-debug scripts measure elapsed time around a `debugger;`
-        //    statement and assume devtools is open if elapsed > threshold.
-        //    We can't fully hide, but we can reduce the delta by making now()
-        //    return values very close together during suspicious tight loops.
-        //    (Kept minimal — enable only if needed to avoid breaking real code.)
     } catch (e) {}
 
-    // Only log requests to interesting endpoints (skip trackers/analytics only)
     function isInterestingUrl(url) {
         if (!url) return false;
         const noise = [
-            // Ad networks & analytics
             'doubleclick', 'google-analytics', 'googletagmanager', 'clarity.ms',
             'facebook.com', 'facebook.net', 'linkedin.com', 'google.com/ccm',
             'google.com/measurement', 'google.com/rmkt', 'googleadservices',
@@ -95,7 +79,6 @@
             'sharethis.com', 'crwdcntrl.net', 'scorecardresearch.com', 'quantserve.com',
             'hotjar.com', 'mixpanel.com', 'segment.io', 'segment.com', 'amplitude.com',
             'sentry.io', 'bugsnag.com', 'newrelic.com', 'datadoghq.com',
-            // Cloudflare telemetry & challenges (NOT /cdn-cgi/scripts which may host real code)
             '/cdn-cgi/rum', '/cdn-cgi/challenge-platform', '/cdn-cgi/beacon',
             '/cdn-cgi/trace', '/cdn-cgi/zaraz'
         ];
@@ -103,14 +86,12 @@
         return !noise.some(n => lower.includes(n));
     }
 
-    // Flag URLs that look like streaming video / DRM content
     function isVideoUrl(url) {
         if (!url) return false;
         return /\.(m3u8|mpd|ts|mp4|m4s|webm|mkv|key)(\?|$)/i.test(url)
             || /\/(hls|dash|stream|manifest|segment|video|getVideo|playlist)/i.test(url);
     }
 
-    // Hook fetch — log outbound bodies to interesting endpoints
     hook(window, 'fetch', function (origFetch) {
         return function fetch(resource, options) {
             try {
@@ -138,7 +119,6 @@
         };
     });
 
-    // Hook navigator.sendBeacon
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         hook(navigator, 'sendBeacon', function (origSendBeacon) {
             return function sendBeacon(url, data) {
@@ -158,7 +138,6 @@
         });
     }
 
-    // Hook WebSockets
     if (typeof WebSocket !== 'undefined') {
         hook(WebSocket.prototype, 'send', function (origSend) {
             return function send(data) {
@@ -177,7 +156,6 @@
         });
     }
 
-    // Hook WebAssembly compile/instantiate to catch anti-bot payloads early
     if (typeof WebAssembly !== 'undefined') {
         hook(WebAssembly, 'instantiate', function (origInstantiate) {
             return function instantiate(bufferSource, importObject) {
@@ -200,7 +178,6 @@
         });
     }
 
-    // Hook Storage (localStorage / sessionStorage) setters to track state tokens
     if (typeof Storage !== 'undefined') {
         hook(Storage.prototype, 'setItem', function (origSetItem) {
             return function setItem(key, value) {
@@ -216,7 +193,6 @@
         });
     }
 
-    // Hook XHR — remember open() params then log on send()
     if (typeof XMLHttpRequest !== 'undefined') {
         hook(XMLHttpRequest.prototype, 'open', function (origOpen) {
             return function open(method, url) {
