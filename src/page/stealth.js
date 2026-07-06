@@ -251,22 +251,22 @@
     }
 
     if (typeof URL !== 'undefined' && URL.createObjectURL) {
-        const origCreate = URL.createObjectURL;
-        URL.createObjectURL = function createObjectURL(obj) {
-            const url = origCreate.apply(this, arguments);
-            try {
-                if (obj instanceof Blob) {
-                    console.log(`[Reversed-Event] BLOB URL ${url} type=${obj.type} size=${obj.size}B`);
-                    if (obj.size < 200000 && (/javascript|json|text|wasm/i.test(obj.type) || obj.type === '')) {
-                        obj.text().then(txt => {
-                            const snippet = txt.length > 800 ? txt.substring(0, 800) + '...' : txt;
-                            console.log(`[Reversed-Event] BLOB CONTENT ${url}: ${snippet}`);
-                        }).catch(() => {});
+        hook(URL, 'createObjectURL', function (origCreate) {
+            return function createObjectURL(obj) {
+                const url = origCreate.apply(this, arguments);
+                try {
+                    if (obj instanceof Blob) {
+                        console.log(`[Reversed-Event] BLOB URL ${url} type=${obj.type} size=${obj.size}B`);
+                        if (obj.size < 200000 && (/javascript|json|text|wasm/i.test(obj.type) || obj.type === '')) {
+                            obj.text().then(txt => {
+                                const snippet = txt.length > 800 ? txt.substring(0, 800) + '...' : txt;
+                                console.log(`[Reversed-Event] BLOB CONTENT ${url}: ${snippet}`);
+                            }).catch(() => {});
+                        }
                     }
-                }
-            } catch (e) {}
-            return url;
-        };
-        secureObject(URL.createObjectURL, 'name', 'createObjectURL', false);
+                } catch (e) {}
+                return url;
+            };
+        });
     }
 })();
