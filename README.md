@@ -1,64 +1,99 @@
 # WebCrypto Interceptor
 
-A stealthy, Chrome DevTools Protocol (CDP) based instrumentation toolkit designed to capture plaintext payloads from the Web Crypto API (crypto.subtle) before they are encrypted. 
+A stealth CDP-based reverse-engineering toolkit that watches what a website does under the hood — every `crypto.subtle` call, every network request/response, every worker message, every blob URL. Works on any site.
 
-Unlike traditional hooks that wrap or replace native JS functions (which modern anti-bot and security scripts can easily detect), this tool utilizes runtime-level V8 debugger breakpoints. This ensures complete invisibility to the target page's code.
-
----
-
-## Features
-
-- **Invisible Interception**: Hooks into `crypto.subtle` methods via real V8 debugger pause states, keeping native objects completely untouched.
-- **Out-of-Process Iframe (OOPIF) Support**: Automatically creates dedicated CDP sessions for target iframes (like payment processors, gateway forms, or challenge workers) to hook their isolated crypto contexts dynamically.
-- **Full Call-Stack Inspection**: Resolves and traces the execution stack up to 5 levels deep upon crypto hits, pointing you straight to the obfuscated caller scripts.
-- **Payload Decoding**: Decodes ArrayBuffers, TypedArrays, complex objects, and stringified JSON payloads directly from paused V8 local variables.
-- **Dynamic Response Capture**: Hooks network channels to inspect and dump corresponding server responses.
-- **Automated Session Logging**: Keeps track of your investigations by writing clean event streams straight into a local JSONL file for offline replay and diffing.
+Unlike script-based hooks (which anti-bot scripts detect easily), this uses real V8 debugger breakpoints. The target page cannot see anything is patched.
 
 ---
 
-## Getting Started
+## What it captures
 
-### Prerequisites
+- **Crypto boundary** — every `crypto.subtle.encrypt/decrypt/sign/digest/...` call, with plaintext inputs, key material, and 5-level call stack.
+- **Network traffic** — outbound `fetch`, `XHR`, `WebSocket`, `sendBeacon` bodies; inbound response bodies (auto base64-decoded).
+- **Video / streaming** — auto-tags m3u8, mpd, HLS, DASH URLs with `[🎬 VIDEO]`.
+- **Content keys** — auto-extracts hex/base64 AES keys from JSON fields (`ck`, `key`, `contentKey`) and HLS `#EXT-X-KEY` lines.
+- **Worker communication** — `Worker.postMessage` and `MessagePort.postMessage`.
+- **Blob URLs** — dumps the actual JS source of workers/eval bundles created via `URL.createObjectURL`.
+- **Storage writes** — flags `localStorage`/`sessionStorage` sets containing tokens, keys, or auth material.
+- **WebAssembly** — logs every WASM module loaded.
+- **Anti-anti-debug** — blackboxes scripts and neutralizes `debugger;` traps so the page loads normally.
 
-- Node.js (v16 or higher)
-- Google Chrome installed locally
-
-### Installation
-
-1. Clone or download this project.
-2. Initialize dependencies:
-   ```bash
-   npm install
-   ```
+Everything above is written to `session_capture_<timestamp>.jsonl` for offline analysis.
 
 ---
 
-## Usage
-
-Start the capture server by running the orchestrator alongside your target URL:
+## Install
 
 ```bash
-# General headless capture
+git clone https://github.com/AmitHaina/webcrypto-interceptor.git
+cd webcrypto-interceptor
+npm install
+```
+
+Requires Node.js 16+ and Chrome installed locally.
+
+---
+
+## Use
+
+```bash
+# Headless
 node capture_server.js "https://example.com"
 
-# GUI mode (recommended for interacting with forms/payments)
+# With visible browser (recommended — you can click around)
 node capture_server.js "https://example.com" --gui
 ```
 
-Upon launching, the tool will automatically output interactive console signals whenever `crypto.subtle` operations are triggered. All results are live-streamed and written locally to `session_capture_<timestamp>.jsonl`.
+Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`.
 
 ---
 
-## Contributing
+## Tags you'll see
 
-Contributors are welcome! If you want to raise an issue, suggest improvements, or submit a pull request:
+| Tag | Meaning |
+|---|---|
+| `[🔓 CRYPTO BOUNDARY]` | A `crypto.subtle.*` call fired — inputs and stack shown |
+| `[🌐 NET]` | Outbound fetch/XHR with body |
+| `[📥 NET RESP]` | Response body (base64-decoded if needed) |
+| `[🎬 VIDEO]` | Streaming URL (m3u8/hls/mp4) |
+| `[🔑 CONTENT KEY]` | AES key auto-extracted from response |
+| `[🔐 HLS AES KEY URI]` | HLS AES-128 key URL from `#EXT-X-KEY` |
+| `[📨 MSG]` | Worker or MessagePort postMessage |
+| `[🗂️ BLOB URL]` | New blob URL created |
+| `[📄 BLOB CONTENT]` | Blob source code (JS/JSON/WASM under 200KB) |
+| `[💾 STORAGE STATE]` | Interesting localStorage/sessionStorage write |
+| `[🧬 WASM INJECT]` | WebAssembly module loaded |
+
+---
+
+## Extend
+
+Site not matching enough endpoints? Edit [`src/config.js`](src/config.js):
+
+```js
+RESP_KEYWORDS.push('mycustomendpoint', '/api/decrypt');
+```
+
+---
+
+## Structure
+
+```
+capture_server.js       ← entry point
+src/
+  config.js             ← keywords & method lists
+  cdp/                  ← Chrome DevTools Protocol logic
+  page/stealth.js       ← page-side hooks
+  util/                 ← colors, logging, decoders
+```
+
 ---
 
 ## Community
 
-Join the discussion, ask questions, or share your reverse-engineering research on Discord:
+Join the Discord for questions and research sharing:
 
 [![Discord](https://img.shields.io/discord/1110000000000000000?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/QphWRKHvH2)
 
-Join our channel: [Discord Server](https://discord.gg/QphWRKHvH2)
+[https://discord.gg/QphWRKHvH2](https://discord.gg/QphWRKHvH2)
+
