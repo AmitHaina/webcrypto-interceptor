@@ -301,8 +301,21 @@
                 var hex = '', utf8 = '';
                 var limit = Math.min(u.length, 512);
                 for (var i = 0; i < limit; i++) hex += (u[i] < 16 ? '0' : '') + u[i].toString(16);
+                var out = { __t: name || 'Bytes', len: u.length, hex: hex };
                 try { utf8 = new TextDecoder('utf-8', { fatal: false }).decode(u.subarray(0, 512)); } catch (e) {}
-                return { __t: name || 'Bytes', len: u.length, hex: hex, utf8: utf8 };
+                // Only include utf8 if it looks like real text: no U+FFFD
+                // replacement chars and mostly-printable content. Otherwise
+                // it's binary (AES key / ciphertext) and the string is garbage.
+                if (utf8 && utf8.indexOf('\uFFFD') === -1) {
+                    var printable = 0, total = utf8.length;
+                    for (var j = 0; j < total; j++) {
+                        var code = utf8.charCodeAt(j);
+                        // Printable ASCII, tab, LF, CR, or any non-ASCII code point
+                        if ((code >= 0x20 && code <= 0x7E) || code === 9 || code === 10 || code === 13 || code > 0x7F) printable++;
+                    }
+                    if (total > 0 && printable / total >= 0.9) out.utf8 = utf8;
+                }
+                return out;
             }
             function serializeArg(v, depth) {
                 if (depth === undefined) depth = 3;
