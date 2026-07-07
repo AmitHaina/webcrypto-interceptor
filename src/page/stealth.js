@@ -289,4 +289,75 @@
             };
         });
     }
+
+    // crypto.subtle argument capture — page-side wrapper. Complements the CDP
+    // breakpoint (which pauses at the caller frame and sometimes can't see args
+    // that live in a Promise microtask closure). This wrapper runs at call time
+    // so it always sees the real arguments.
+    try {
+        const subtle = window.crypto && window.crypto.subtle;
+        if (subtle) {
+            function bytesToObj(u, name) {
+                var hex = '', utf8 = '';
+                var limit = Math.min(u.length, 512);
+                for (var i = 0; i < limit; i++) hex += (u[i] < 16 ? '0' : '') + u[i].toString(16);
+                try { utf8 = new TextDecoder('utf-8', { fatal: false }).decode(u.subarray(0, 512)); } catch (e) {}
+                return { __t: name || 'Bytes', len: u.length, hex: hex, utf8: utf8 };
+            }
+            function serializeArg(v, depth) {
+                if (depth === undefined) depth = 3;
+                if (v === null || v === undefined) return v;
+                var t = typeof v;
+                if (t === 'string') return v.length > 512 ? v.substring(0, 512) + '...' : v;
+                if (t === 'number' || t === 'boolean') return v;
+                if (t === 'function') return '[function]';
+                if (v instanceof ArrayBuffer) return bytesToObj(new Uint8Array(v), 'ArrayBuffer');
+                if (ArrayBuffer.isView(v)) return bytesToObj(new Uint8Array(v.buffer, v.byteOffset, v.byteLength), v.constructor && v.constructor.name);
+                if (typeof CryptoKey !== 'undefined' && v instanceof CryptoKey) {
+                    return { __t: 'CryptoKey', type: v.type, extractable: v.extractable, algorithm: v.algorithm, usages: v.usages };
+                }
+                if (Array.isArray(v)) {
+                    if (depth <= 0) return '[Array len=' + v.length + ']';
+                    return v.slice(0, 16).map(function (x) { return serializeArg(x, depth - 1); });
+                }
+                if (t === 'object') {
+                    if (depth <= 0) return '[Object]';
+                    var out = {};
+                    var keys;
+                    try { keys = Object.keys(v).slice(0, 24); } catch (e) { return '[unreadable]'; }
+                    for (var i = 0; i < keys.length; i++) {
+                        try { out[keys[i]] = serializeArg(v[keys[i]], depth - 1); } catch (e) { out[keys[i]] = '[unreadable]'; }
+                    }
+                    return out;
+                }
+                return String(v);
+            }
+            var subtleMethods = ['encrypt', 'decrypt', 'sign', 'verify', 'digest',
+                'deriveKey', 'deriveBits', 'importKey', 'exportKey',
+                'generateKey', 'wrapKey', 'unwrapKey'];
+            for (var mi = 0; mi < subtleMethods.length; mi++) {
+                (function (m) {
+                    var orig;
+                    try { orig = subtle[m]; } catch (e) { return; }
+                    if (typeof orig !== 'function') return;
+                    var wrapped = function () {
+                        try {
+                            var args = [];
+                            for (var i = 0; i < arguments.length; i++) args.push(serializeArg(arguments[i]));
+                            var line;
+                            try { line = JSON.stringify(args); } catch (e) { line = '[unserializable args]'; }
+                            if (line.length > 4096) line = line.substring(0, 4096) + '...';
+                            console.log('[Reversed-Event] CRYPTO-ARGS ' + m + ' ' + line);
+                        } catch (e) {}
+                        return orig.apply(this, arguments);
+                    };
+                    originalFunctions.set(wrapped, orig);
+                    secureObject(wrapped, 'name', m, false);
+                    try {
+                        Object.defineProperty(subtle, m, { value: wrapped, writable: true, configurable: true, enumerable: true });
+                    } catch (e) {}
+                })(subtleMethods[mi]);
+            }
+        }
+    } catch (e) {}
 })();
