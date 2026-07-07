@@ -7,6 +7,9 @@ node_modules/
 *.har
 response.txt
 
+# Local test/debug utilities (never push)
+scripts/
+
 # Log files
 *.log
 npm-debug.log*
