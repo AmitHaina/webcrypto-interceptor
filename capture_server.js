@@ -24,6 +24,7 @@ function formatHookConsole(text) {
     const stripped = text.replace('[Reversed-Event] ', '');
     if (text.includes('PAYMENT-JSON')) return `${C.hlgrn}[💳 PAYMENT-JSON]${C.reset} ${C.green}${stripped.replace('PAYMENT-JSON: ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] CRYPTO-ARGS')) return `${C.hlred}[🔓 CRYPTO ARGS]${C.reset} ${C.green}${stripped.replace('CRYPTO-ARGS ', '')}${C.reset}`;
+    if (text.includes('[Reversed-Event] JSCRYPTO-ARGS')) return `${C.hlred}[🔐 JSCRYPTO]${C.reset} ${C.green}${stripped.replace('JSCRYPTO-ARGS ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] VIDEO')) return `${C.magenta}[🎬 VIDEO]${C.reset} ${C.green}${stripped.replace('VIDEO ', '')}${C.reset}`;
     if (text.includes('WASAssembly.instantiate') || text.includes('[Reversed-Event] WASM')) return `${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${stripped}${C.reset}`;
     if (text.includes('[Reversed-Event] BLOB CONTENT')) return `${C.hlgrn}[📄 BLOB CONTENT]${C.reset} ${C.green}${stripped.replace('BLOB CONTENT ', '')}${C.reset}`;

@@ -373,4 +373,179 @@
             }
         }
     } catch (e) {}
+
+    // Pure-JS crypto library hooks — for sites that use CryptoJS / JSEncrypt /
+    // sjcl instead of Web Crypto. Poller runs for ~15s to catch libs loaded
+    // lazily after our stealth script. Uses same stealth pattern (originalFunctions
+    // map so Function.prototype.toString still returns the native source).
+    try {
+        var jsHooked = { CryptoJS: false, JSEncrypt: false, sjcl: false };
+
+        function jsWaToHex(wa) {
+            try {
+                if (wa && typeof wa.toString === 'function') return wa.toString();
+            } catch (e) {}
+            return null;
+        }
+        function jsDescribeKey(k) {
+            if (k === null || k === undefined) return null;
+            if (typeof k === 'string') return { __t: 'Passphrase', value: k.length > 256 ? k.substring(0, 256) + '...' : k };
+            if (k && typeof k === 'object' && k.words) return { __t: 'WordArray', sigBytes: k.sigBytes, hex: jsWaToHex(k) };
+            return { __t: typeof k, value: String(k).substring(0, 128) };
+        }
+        function jsDescribeMsg(m) {
+            if (m === null || m === undefined) return null;
+            if (typeof m === 'string') return { __t: 'String', len: m.length, value: m.length > 512 ? m.substring(0, 512) + '...' : m };
+            if (m && typeof m === 'object' && m.words) return { __t: 'WordArray', sigBytes: m.sigBytes, hex: jsWaToHex(m) };
+            return { __t: typeof m, value: String(m).substring(0, 128) };
+        }
+        function jsDescribeCipherParams(cp) {
+            if (!cp || typeof cp !== 'object') return null;
+            var out = { __t: 'CipherParams' };
+            try { if (cp.ciphertext) out.ciphertext = jsWaToHex(cp.ciphertext); } catch (e) {}
+            try { if (cp.key) out.key = jsWaToHex(cp.key); } catch (e) {}
+            try { if (cp.iv) out.iv = jsWaToHex(cp.iv); } catch (e) {}
+            try { if (cp.salt) out.salt = jsWaToHex(cp.salt); } catch (e) {}
+            try { out.b64 = cp.toString(); } catch (e) {}
+            return out;
+        }
+        function jsDescribeCfg(cfg) {
+            if (!cfg || typeof cfg !== 'object') return cfg;
+            var out = {};
+            try { if (cfg.iv) out.iv = jsWaToHex(cfg.iv); } catch (e) {}
+            try { if (cfg.mode && cfg.mode.name) out.mode = cfg.mode.name; } catch (e) {}
+            try { if (cfg.padding && cfg.padding.name) out.padding = cfg.padding.name; } catch (e) {}
+            try { if (cfg.format) out.format = 'custom'; } catch (e) {}
+            return out;
+        }
+        function jsEmit(label, obj) {
+            try {
+                var s = JSON.stringify(obj);
+                if (s.length > 4096) s = s.substring(0, 4096) + '...';
+                console.log('[Reversed-Event] JSCRYPTO-ARGS ' + label + ' ' + s);
+            } catch (e) {}
+        }
+        function jsWrap(parent, prop, factory) {
+            var orig = parent[prop];
+            if (typeof orig !== 'function') return;
+            var wrapped = factory(orig);
+            originalFunctions.set(wrapped, orig);
+            secureObject(wrapped, 'name', orig.name || prop, false);
+            parent[prop] = wrapped;
+        }
+
+        function hookCryptoJS() {
+            if (jsHooked.CryptoJS) return;
+            var CJ = window.CryptoJS;
+            if (!CJ || !CJ.AES) return;
+            jsHooked.CryptoJS = true;
+            ['AES', 'DES', 'TripleDES', 'Rabbit', 'RC4'].forEach(function (algo) {
+                if (!CJ[algo]) return;
+                ['encrypt', 'decrypt'].forEach(function (op) {
+                    jsWrap(CJ[algo], op, function (orig) {
+                        return function (message, key, cfg) {
+                            var ret = orig.apply(this, arguments);
+                            try {
+                                jsEmit(algo + '.' + op, {
+                                    message: jsDescribeMsg(message),
+                                    key: jsDescribeKey(key),
+                                    cfg: jsDescribeCfg(cfg),
+                                    result: op === 'encrypt' ? jsDescribeCipherParams(ret) : jsDescribeMsg(ret)
+                                });
+                            } catch (e) {}
+                            return ret;
+                        };
+                    });
+                });
+            });
+            ['HmacSHA256', 'HmacSHA1', 'HmacSHA512', 'HmacMD5'].forEach(function (fn) {
+                jsWrap(CJ, fn, function (orig) {
+                    return function (message, key) {
+                        var ret = orig.apply(this, arguments);
+                        try {
+                            jsEmit(fn, {
+                                message: jsDescribeMsg(message),
+                                key: jsDescribeKey(key),
+                                digest: jsWaToHex(ret)
+                            });
+                        } catch (e) {}
+                        return ret;
+                    };
+                });
+            });
+            console.log('[Reversed-Event] JSCRYPTO-ARGS init CryptoJS hooked');
+        }
+
+        function hookJSEncrypt() {
+            if (jsHooked.JSEncrypt) return;
+            var JE = window.JSEncrypt;
+            if (!JE || !JE.prototype) return;
+            jsHooked.JSEncrypt = true;
+            ['setPublicKey', 'setPrivateKey'].forEach(function (m) {
+                jsWrap(JE.prototype, m, function (orig) {
+                    return function (pem) {
+                        try {
+                            jsEmit('JSEncrypt.' + m, {
+                                pem: typeof pem === 'string' ? (pem.length > 2048 ? pem.substring(0, 2048) + '...' : pem) : String(pem)
+                            });
+                        } catch (e) {}
+                        return orig.apply(this, arguments);
+                    };
+                });
+            });
+            ['encrypt', 'decrypt', 'sign', 'verify'].forEach(function (m) {
+                jsWrap(JE.prototype, m, function (orig) {
+                    return function () {
+                        var args = [];
+                        for (var i = 0; i < arguments.length; i++) args.push(jsDescribeMsg(arguments[i]));
+                        var ret = orig.apply(this, arguments);
+                        try {
+                            jsEmit('JSEncrypt.' + m, {
+                                args: args,
+                                result: typeof ret === 'string' ? (ret.length > 512 ? ret.substring(0, 512) + '...' : ret) : String(ret).substring(0, 128)
+                            });
+                        } catch (e) {}
+                        return ret;
+                    };
+                });
+            });
+            console.log('[Reversed-Event] JSCRYPTO-ARGS init JSEncrypt hooked');
+        }
+
+        function hookSjcl() {
+            if (jsHooked.sjcl) return;
+            var S = window.sjcl;
+            if (!S || typeof S.encrypt !== 'function') return;
+            jsHooked.sjcl = true;
+            ['encrypt', 'decrypt'].forEach(function (m) {
+                jsWrap(S, m, function (orig) {
+                    return function (password, data, params) {
+                        var ret = orig.apply(this, arguments);
+                        try {
+                            jsEmit('sjcl.' + m, {
+                                password: typeof password === 'string' ? (password.length > 128 ? password.substring(0, 128) + '...' : password) : '[non-string]',
+                                data: jsDescribeMsg(data),
+                                params: params,
+                                result: typeof ret === 'string' ? (ret.length > 1024 ? ret.substring(0, 1024) + '...' : ret) : String(ret).substring(0, 512)
+                            });
+                        } catch (e) {}
+                        return ret;
+                    };
+                });
+            });
+            console.log('[Reversed-Event] JSCRYPTO-ARGS init sjcl hooked');
+        }
+
+        function pollJsCrypto() {
+            try { hookCryptoJS(); } catch (e) {}
+            try { hookJSEncrypt(); } catch (e) {}
+            try { hookSjcl(); } catch (e) {}
+        }
+        pollJsCrypto();
+        var jsPollCount = 0;
+        var jsPollId = setInterval(function () {
+            pollJsCrypto();
+            if (++jsPollCount > 60) clearInterval(jsPollId); // 60 * 250ms = 15s
+        }, 250);
+    } catch (e) {}
 })();
