@@ -1,6 +1,7 @@
 const { C } = require('../util/colors');
 const { enableAntiDebug } = require('./anti-debug');
 const { attachNetworkCapture } = require('./network');
+const { attachScriptScanner } = require('./scripts');
 const { recordCryptoCall, armCryptoBreakpoints } = require('./crypto');
 
 async function attachToSession(cdpSession, targetLabel) {
@@ -8,6 +9,7 @@ async function attachToSession(cdpSession, targetLabel) {
     try { await cdpSession.send('Debugger.enable'); } catch (e) {}
     await enableAntiDebug(cdpSession);
     await attachNetworkCapture(cdpSession);
+    await attachScriptScanner(cdpSession);
 
     const bpMap = {};
 

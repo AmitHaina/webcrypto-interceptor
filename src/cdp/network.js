@@ -1,6 +1,7 @@
 const { C } = require('../util/colors');
 const { writeLog } = require('../util/log');
 const { extractContentKey, extractHlsKeyUri } = require('../util/decoders');
+const { scanForSecrets, reportSecrets } = require('../util/secrets');
 const { RESP_KEYWORDS, SKIP_RESP_EXT, SKIP_RESP_CT } = require('../config');
 
 // Cross-session dedup: same URL+status logged only once within TTL
@@ -15,55 +16,6 @@ function alreadySeen(url, status) {
     if (seenResponses.has(key)) return true;
     seenResponses.set(key, now);
     return false;
-}
-
-// Global dedup for discovered secrets — same value only reported once ever.
-const seenSecrets = new Set();
-
-// Scan any text body for hardcoded crypto material: PEM keys, RSA JWK n/e,
-// AES/HMAC hex/base64 keys, JWTs. Returns array of findings.
-function scanForSecrets(body, url) {
-    const findings = [];
-    if (!body || typeof body !== 'string') return findings;
-
-    // PEM public/private keys (RSA, EC, generic)
-    const pemRe = /-----BEGIN (?:RSA |EC |DSA )?(PUBLIC|PRIVATE) KEY-----([\s\S]{20,4000}?)-----END (?:RSA |EC |DSA )?\1 KEY-----/g;
-    let m;
-    while ((m = pemRe.exec(body)) !== null) {
-        const full = m[0].replace(/\\n/g, '\n');
-        findings.push({ type: `PEM_${m[1]}_KEY`, value: full });
-    }
-
-    // Hardcoded key/secret assignments: rsaPublicKey:"...", secretKey='...', aesKey:`...`, etc.
-    const assignRe = /\b(rsaPublicKey|rsaPrivateKey|publicKey|privateKey|secretKey|aesKey|apiKey|api_key|appSecret|app_secret|hmacKey|signKey|encryptKey|encrypt_key)\s*[:=]\s*['"`]([A-Za-z0-9+/=_\-\\n\s]{16,4000})['"`]/g;
-    while ((m = assignRe.exec(body)) !== null) {
-        const raw = m[2].replace(/\\n/g, '\n').trim();
-        if (raw.length >= 16) findings.push({ type: `HARDCODED_${m[1]}`, value: raw });
-    }
-
-    // Bare AES-shaped hex constants: 32/48/64 hex chars (128/192/256-bit)
-    // Only match those clearly assigned to a variable to avoid random hex spam.
-    const hexKeyRe = /\b(?:key|iv|salt|secret|token)\w*\s*[:=]\s*['"]([a-fA-F0-9]{32}|[a-fA-F0-9]{48}|[a-fA-F0-9]{64})['"]/g;
-    while ((m = hexKeyRe.exec(body)) !== null) {
-        findings.push({ type: `HEX_KEY_${m[1].length * 4}bit`, value: m[1] });
-    }
-
-    // JWTs — three base64url segments separated by dots
-    const jwtRe = /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g;
-    while ((m = jwtRe.exec(body)) !== null) findings.push({ type: 'JWT', value: m[0] });
-
-    return findings;
-}
-
-function reportSecrets(findings, url) {
-    for (const f of findings) {
-        const sig = f.type + '|' + f.value.substring(0, 200);
-        if (seenSecrets.has(sig)) continue;
-        seenSecrets.add(sig);
-        const preview = f.value.length > 400 ? f.value.substring(0, 400) + '...' : f.value;
-        console.log(`${C.hlred}[\ud83d\udd11 SECRET] ${f.type}${C.reset} in ${C.dim}${url}${C.reset}\n   ${C.green}${preview}${C.reset}`);
-        writeLog({ type: 'secret_found', kind: f.type, url, value: f.value });
-    }
 }
 
 async function attachNetworkCapture(cdpSession) {
