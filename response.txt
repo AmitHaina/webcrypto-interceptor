@@ -1,0 +1,215 @@
+Microsoft Windows [Version 10.0.14393]
+(c) 2016 Microsoft Corporation. All rights reserved.
+
+C:\Users\Manjil\Documents\root\reverse-eng>node capture_server.js "https://www.u7buy.com/" --gui
+
+=============================================================
+🤖 WEBCRYPTO-INTERCEPTOR
+📡 TARGET: https://www.u7buy.com/
+🖥️  MODE: GUI (Headful)
+📝 LOG: session_capture_1783428436049.jsonl
+=============================================================
+
+Navigating to page...
+
+[🕷️  CRYPTO HOOK] 12 breakpoints armed on page:www.u7buy.com/
+[⚓ EVENT] fetch [GET] /_i18n/41176f46/en/messages.json
+[⚓ EVENT] fetch [GET] https://www.u7buy.com/prod-api/member/activity/v1/status
+[⚓ EVENT] fetch [GET] /_nuxt/builds/meta/0b34ba6a-bf87-4eb9-840f-ee22ddc323f4.json
+[🌐 NET] sendBeacon https://log.cookieyes.com/api/v1/log body: [object FormData]
+[⚓ EVENT] fetch [GET] https://cdn-cookieyes.com/client_data/1fa326f55c0421393eeb988f/3a0DlnLJ.json
+[⚓ EVENT] fetch [GET] https://directory.cookieyes.com/api/v1/ip
+[⚓ EVENT] fetch [GET] https://cdn-cookieyes.com/client_data/1fa326f55c0421393eeb988f/audit-table/Fn-bFNNV.json
+[🌐 NET] sendBeacon https://bat.bing.com/actionp/0?ti=343251431&tm=gtm002&Ver=2&mid=693a7449-1f3a-48d8-9eb5-d26e5a050bf6&bo=1&evt=consent&src=update&cdb=AQcT&asc=G body: undefined
+
+✅ Page loaded.
+
+🌟 STREAMING (Ctrl+C to stop). Interact with the page to trigger events. Watch for [🔓 CRYPTO BOUNDARY], [🌐 NET] and [💾 STORAGE STATE].
+
+[⚓ EVENT] fetch [GET] https://www.u7buy.com/prod-api/product/api/seo/info?url=%2Flogin
+[⚓ EVENT] XHR [GET] https://api.ipdata.co/?api-key=4cd998a06fc071a282b295446f7f5ca644c6ae3d757558924f2d76a7
+[⚓ EVENT] fetch [POST] /x6dr/d/pagead/form-data/999556424?gtm=45892e6711v9103769797za204zd9103769797xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115938466~115938469~119027224~119576881~119576885~119576891~119576895~119793974&rcb=18&did=dY2E1Nz%2CdY2Q2ZW&gdid=dY2E1Nz.dY2Q2ZW.dNzQzZD&npa=0&frm=0&pscdl=noapi&ae=a&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&_tu=CA&gap.gtb=2
+[⚓ EVENT] fetch [POST] /x6dr/d/ccm/form-data/999556424?gtm=45892e6711v9103769797za204zd9103769797xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115938466~115938469~119027224~119576881~119576885~119576891~119576895~119793974&rcb=18&did=dY2E1Nz%2CdY2Q2ZW&gdid=dY2E1Nz.dY2Q2ZW.dNzQzZD&npa=0&frm=0&ae=a&pscdl=noapi&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&_tu=CA&gap.gtb=2&_uip=%3A%3A
+[⚓ EVENT] fetch [POST] https://www.google.com/pagead/form-data/686861150?gtm=45be6711h1v9103507351za20gzb9119249651zd9119249651xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115616986~115938466~115938469~118395333~119027224~119576881~119576885~119576891~119576895&rcb=1&did=dY2Q2ZW%2CdY2E1Nz&gdid=dY2Q2ZW.dY2E1Nz&npa=0&frm=0&pscdl=noapi&ae=a&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&_tu=CA
+[🕷️  CRYPTO HOOK] 12 breakpoints armed on other:
+[💾 STORAGE STATE] STORAGE [localStorage] set user = {"state":{"userInfo":{"accessToken":"","email":"","phone":"","refreshToken":"","signInFlag":0,"twoStepType":0,"socialKey":""},"trafficSourceId":"","queue":[],"reconnectSse":false,"isFcNewCustomer":true,"signState":"signUp","businessType":0,"regInfo":{"email":"","firstName":"","lastName":"","password
+[🌐 NET] XHR [POST] https://accounts.livechatinc.com/v2/customer/token body: {"response_type":"token","grant_type":"cookie","client_id":"c5e4f61e1a6c3b1521b541bc5c5a2ac5","organization_id":"0c6592b8-ab23-4e95-8916-532d889c367b","redirect_uri":"https://secure.livechatinc.com/customer/action/open_chat"}
+[💾 STORAGE STATE] STORAGE [localStorage] set @@lc_auth_token:0c6592b8-ab23-4e95-8916-532d889c367b = {"accessToken":"us-south1:X3PBJipqR16RCuaUWbBj9w","entityId":"2391e5a6-d63e-489d-95bc-49b086b5f28c","expiresIn":14400000,"tokenType":"Bearer","creationDate":1783428461996,"organizationId":"0c6592b8-ab23-4e95-8916-532d889c367b"}
+[🌐 NET] WebSocket [SEND] wss://api.livechatinc.com/v3.6/customer/rtm/ws?organization_id=0c6592b8-ab23-4e95-8916-532d889c367b&x-region=us-south1 body: {"request_id":"xa3te9on1m","action":"login","payload":{"token":"Bearer us-south1:X3PBJipqR16RCuaUWbBj9w","customer":{},"customer_side_storage":{},"is_mobile":false,"application":{"name":"chat_widget","version":"a4c0ccb31528f386fbd414c4b3d0768585c6b35a","channel_type":"code"},"c":547,"customer_page":{"url":"https://www.u7buy.com/","title":"U7BUY | Buy/Sell Game Coins, Top Up & Digital Gift Cards"},"referrer":"","pushes":{"3.6":["chat_deactivated","chat_properties_deleted","chat_properties_updated","chat_transferred","customer_side_storage_updated","customer_updated","events_marked_as_seen","event_properties_deleted","event_properties_updated","event_updated","greeting_accepted","greeting_canceled","groups_status_updated","incoming_chat","incoming_event","incoming_event_preview","incoming_greeting","incoming_multicast","incoming_rich_message_postback","incoming_thinking_indicator","incoming_typing_indicator","incoming_welcome_message","queue_position_updated","thread_properties_deleted","thread_properties_updated","user_added_to_chat","user_removed_from_chat"]}},"version":"3.6"}
+
+[📥 NET RESP] 200 https://accounts.livechatinc.com/v2/customer/token
+   {"access_token":"us-south1:X3PBJipqR16RCuaUWbBj9w","entity_id":"2391e5a6-d63e-489d-95bc-49b086b5f28c","expires_in":14400,"organization_id":"0c6592b8-ab23-4e95-8916-532d889c367b","token_type":"Bearer"}
+
+[🌐 NET] WebSocket [SEND] wss://api.livechatinc.com/v3.6/customer/rtm/ws?organization_id=0c6592b8-ab23-4e95-8916-532d889c367b&x-region=us-south1 body: {"request_id":"00kg4bq9mskp9","action":"update_customer_page","payload":{"title":"Login to U7BUY – Get More Membership Rewards","url":"https://www.u7buy.com/login?targetUrl=%252F"}}
+[⚓ EVENT] fetch [POST] /x6dr/d/pagead/form-data/999556424?gtm=45892e6711v9103769797za204zd9103769797xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115938466~115938469~119027224~119576881~119576885~119576891~119576895~119793974&rcb=18&did=dY2E1Nz%2CdY2Q2ZW&gdid=dY2E1Nz.dY2Q2ZW.dNzQzZD&npa=0&frm=0&pscdl=noapi&ae=a&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&_tu=CA&gap.fsrc=1&gap.gtb=2
+[⚓ EVENT] fetch [POST] https://www.google.com/pagead/form-data/686861150?gtm=45be6711h1v9103507351za20gzb9119249651zd9119249651xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115616986~115938466~115938469~118395333~119027224~119576881~119576885~119576891~119576895&rcb=1&did=dY2Q2ZW%2CdY2E1Nz&gdid=dY2Q2ZW.dY2E1Nz&npa=0&frm=0&pscdl=noapi&ae=a&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&_tu=CA&gap.fsrc=1
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.generateKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:207:418)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+   a (string): P-256
+   b (object): {"name":"ECDH","namedCurve":"P-256"}
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.exportKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:208:89)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:209:192)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+   a (object): {"kty":"EC","crv":"P-256","x":"FN8tz0hyF67f0KAp6pAf6zCs2cvTZMfv-NuShhERt_E","y":"wMb8Xvtma90rVufBQjnwgG5DVXeZtbp_zYCxI1r97k4","ext":true}
+   c (string): P-256
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.deriveBits in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:207:235)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+   d (string): P-256
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+   a (string): SHA-256
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:214:152)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+[⚓ EVENT] fetch [POST] /x6dr/d/ccm/form-data/999556424?gtm=45892e6711phv9103769797za204zd9103769797xec&gcs=G111&gcd=13r3r3r3r5l1&dma=0&tag_exp=115938466~115938469~119027224~119576881~119576885~119576891~119576895~119793974&rcb=18&did=dY2E1Nz%2CdY2Q2ZW&gdid=dY2E1Nz.dY2Q2ZW.dNzQzZD&npa=0&frm=0&ae=a&pscdl=noapi&auid=540419321.1783428454&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B149.0.7827.201%7CChromium%3B149.0.7827.201%7CNot)A%253BBrand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=3.0.0&uaw=0&ec_mode=a&_tu=CA&gap.fsrc=1&gap.gtb=2&_uip=%3A%3A&emd=tvd.1~i1.fem.ma.r21.n21.lINPUT&ecsid=1423706859.1783428468&eme=tv.1~emkid.5dfd01e7-5493-46a4-8701-420308694cbe~ev.BCRWEXpaxBEuIFbyBpa4Zu5mbvLSODlz6JCCvlXhb84ZwuDmfEuRWdV8jbWJjc5InwPmhEgqKnOIMCh8AouSTeW2cMutN_RBIz0ojLaiTgBLyQUyV4WqRs3TvYsjdh5o9u5DqgXhj5jsCpySkS2lazy7fJ_BoyT6-KvQTxyMw3BvlLpZ
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.sign in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:212:560)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.importKey in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:204:189)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.digest in page:www.u7buy.com/ called by Bi
+   at Bi (<anonymous>:396:627)
+   at <anonymous> (<anonymous>:642:267)
+   at qw (<anonymous>:642:224)
+   at vw (<anonymous>:629:107)
+   at oo (<anonymous>:668:479)
+   a (string): nmr50bepzs@yzcalo.com
+   d (typedarray, 21B utf8): nmr50bepzs@yzcalo.com
+   data (object): {"resource":{"version":"3","macros":[{"function":"__e"}],"tags":[{"function":"__ogt_auto_events","priority":20,"vtp_enableOutboundClick":true,"vtp_enableScroll":true,"vtp_enableDownload":true,"vtp_enableHistoryEvents":true,"vtp_enableForm":true,"vtp_enableVideo":true,"vtp_enablePageView":true,"tag_id":11},{"function":"__ogt_ads_datatos","priority":20,"vtp_instanceDestinationId":"AW-999556424","tag_id":20},{"function":"__ogt_1p_data_v2","priority":10,"vtp_isAutoEnabled":true,"vtp_isManualEnabled":false,"vtp_autoPhoneEnabled":true,"vtp_autoCollectExclusionSelectors":["list",["map","exclusionSelector",""]],"vtp_isEnabled":true,"vtp_autoAddressEnabled":true,"vtp_autoEmailEnabled":true,"vtp_isAutoCollectPiiEnabledFlag":true,"tag_id":9},{"function":"__ccd_ads_first","priority":9,"vtp_instanceDestinationId":"AW-999556424","tag_id":21},{"function":"__ccd_pre_auto_pii","priority":7,"vtp_instanceDestinationId":"AW-999556424","tag_id":19},{"function":"__ccd_em_form","priority":6,"vtp_includeParams":false,"vtp_instanceDestinationId":"AW-999556424","tag_id":18},{"function":"__ccd_em_page_view","priority":5,"vtp_historyEvents":true,"vtp_deferPageView":false,"vtp_includeParams":true,"vtp_instanceDestinationId":"AW-999556424","tag_id":17},{"function":"__ccd_ads_conv_marking","priority":4,"vtp_conversionRules":["list",["map","matchingRules","{\"type\":2,\"args\":[{\"booleanExpressionValue\":{\"type\":1,\"args\":[{\"booleanExpressionValue\":{\"type\":6,\"args\":[{\"contextValue\":{\"namespaceType\":1,\"keyParts\":[\"hitData\",\"page_location\"]}},{\"stringValue\":\"http://www.u7buy.com\"}]}},{\"booleanExpressionValue\":{\"type\":6,\"args\":[{\"contextValue\":{\"namespaceType\":1,\"keyParts\":[\"hitData\",\"page_location\"]}},{\"stringValue\":\"https://www.u7buy.com\"}]}}]}},{\"booleanExpressionValue\":{\"type\":2,\"args\":[{\"booleanExpressionValue\":{\"type\":5,\"args\":[{\"stringValue\":\"page_view\"},{\"contextValue\":{\"namespaceType\":1,\"keyParts\":[\"eventName\"]}}]}},{\"booleanExpressionValue\":{\"type\":1,\"args\":[{\"boo
+
+[🔓 CRYPTO BOUNDARY] crypto.subtle.encrypt in page:www.u7buy.com/ called by <anonymous>
+   at <anonymous> (<anonymous>:202:297)
+   at F (<anonymous>:172:218)
+   at ia.K (<anonymous>:170:380)
+   at next (<anonymous>:172:470)
+   at <anonymous> (<anonymous>:173:280)
+[🌐 NET] XHR [POST] https://www.u7buy.com/prod-api/member/auth/v1/code body: kxoH0ROkyJuOmpw9DEXi7Q==
+[🌐 NET] XHR [POST] https://www.u7buy.com/prod-api/member/auth/v1/check body: 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
+[🌐 NET] fetch [POST] https://www.u7buy.com/prod-api/member/auth/verifyCode body: davsabY9eloRYOQQWJ3iEIyizf+HWmAYwsbfDOGlxe/siqrD/c8fRV8XIHHB01FcI1DFWuRP86gZjVhlISsyBDoa7Nrokyeqs++WA3xtirKxxamPRSK4dEbAc3f9zS5SyK5+RtVXGbCXuBwNEi8qxJ6OnKpmGxrqQ6ys31LcF9CATSpB32odUmVrhYzcRV24pQV316QDB8XXrbWk91YlFA==
+[💾 STORAGE STATE] STORAGE [localStorage] set user = {"state":{"userInfo":{"accessToken":"","email":"","phone":"","refreshToken":"","signInFlag":0,"twoStepType":0,"socialKey":""},"trafficSourceId":"","queue":[],"reconnectSse":false,"isFcNewCustomer":true,"signState":"auth","businessType":0,"regInfo":{"email":"nmr50bepzs@yzcalo.com","firstName":"","las
+
+[📥 NET RESP] 200 https://www.u7buy.com/prod-api/member/auth/v1/code
+   yxA1XqrAJtctD2ZQA1L4hutxO2lTRex8PG54rCOSUzB+cQWxRv7i7UaGhH285WmyOuUVDUGlHOlkMQXRfWDud9TsmMYT1tu54yLi68WnW2hcNUSbtsnqbyrHY+7Pl+0rjJ89403nSEmVBQTxOhnBiU1ZCcwZNMtkmlp+KkqUL1bh1dQ8q+uhupVO8WHkXKg8geAKFZ1apSRTDO3qx2WakDGLhEky97eQonwsVkXEe7SdKnOk0YH0OxrSWAmgbBc0xV6cxIlVBYrllVi0u9EAIpQddOouqc5HjpzUy1HiyjsoxqIqg7uiUn0niSWpQ8uocDSzULajO6brFbynsHvsD2G+d2MEOspx94jfiMOc4QqIePOg8B9bqsyGiFbTcwWohyVsW6OUSif6AmTSNAeQnJ5VmpiCIzTLjfRaMyY79fZR0AfUu3XbN3HSUmaeHC5ldf0l5kRNvawkvfur9Nf1eHX9JeZETb2sJL37q/TX9Xh1/SXmRE29rCS9+6v01/V4LSjfens0icXqnnHFazN5IAh++A5u4excHpx964bFyIXYU0jvpcZCMwjBn3rlhEHbe4ZY5KrRZyd0TkLAfrVrlk7EDujXsvmeqqSC5gKA7yGmC5rlxO7WMoByc4ucZ5fEw764FW8wtkPWJtc/5vM4VGbYYaoPO+KomcEJQqVd3jwKcUq2yDH43B//kh3sBkGlwoLGK89dstKx7u3EdaHnZcm6tJ9Hj0PHAS4Fk1KlXgT8hqmpPoKAS2yhwbHQ/YJ4Vkv0ZFRCUZwsmhd6oUD0KjtS2ygS9SZfjPnFs6cixn1W/P5fiunVS54HqMJaH7XVWvz0Q8yy+lSxOSTacG1GJk8ymtUKiJh+VtO0v6x3qHREWWsAbFyqeDeNd269+TZ90O8VohlkWezrQiE2S52olBgFVZfZYzMVzbSokTYD1H90nmJdvcNvGXj/7IpC/sSWOMiBRlsfD7JxOcAj5j7B8nbQ1V7F3eFPkXxX/oxGlTLR9ibHHqjptrzmlTxRMww20AeZVjdU5CUZpxHZj/vFlBM3aF8a/SDLKZKeGWBaYqXN5AwYgNJTklvzVa1KKgX9Zzj7koB4uGplYAE/jM24PeIFXNUHynTVPc9p23clUhfBx6n6kXO/3weflb/WcX0wKjfnUOj50/T2Cu4Xq7FpsZRZ0y1svQ/O5SGkkW83NcZBayOmvV8WDgHAI0JGW2PBo7yxvCL0UqN6WXhKqI9FSRWytZYDdZroDu55gMWyGWp9yeQeYXLpgrTge+5T7T59wa0WDfDG0+iP7lDKYtIInUacZWHmENm+5pB+DHXFJrCVY9li+kuB5gf4gioV9eTcU3ReiIo06lyju7omUbaSKVwsyUbFDVNkLfS9G7aBdFQSqpofWSZvZVsIYG6Bte36ZN078SiXp2a2Og9dt8TZzE6kvkeSc+uxDGgOogEffUGU6lZvZA1ulxcDL1J3xXneMOESwCSfoYsaieko3EVCXQn+iuuL...
+
+[📥 NET RESP] 200 https://www.u7buy.com/prod-api/member/auth/v1/check
+   b93NzZ2SSeaeMIoXsqWV/KFW4KdDaOWaG+dRGWHEY1p3mt5CNxD9Yx0pZxOYDxSvE7UnSAFZNvTd8aZgIcl1LmWsGcJexXE17YshBW1uG91rKhXZdxuNN+GW3cJmWT8zTa8OmR8y/eCWtxXTEvDijMzrxu5V9ORlSb6EckCGLN0=
+
+[📥 NET RESP] 200 https://www.u7buy.com/prod-api/member/auth/verifyCode
+   Av8ZnXgwE6MVNrq+aZfYV0VpDLaeGu2jgU2PVBr5L3ldASF7NhmP2adMgHomUjQg
