@@ -4,6 +4,7 @@ node_modules/
 # Local session captures and dumps
 *.jsonl
 *.zip
+*.har
 response.txt
 
 # Log files
