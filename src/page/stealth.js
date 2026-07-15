@@ -153,6 +153,36 @@
         });
     }
 
+    // Receive side: send() above only sees outbound frames. Wrapping the
+    // constructor in a Proxy lets us attach a 'message' listener to every
+    // socket instance without clobbering the site's own onmessage= or
+    // addEventListener('message', ...) usage.
+    if (typeof WebSocket !== 'undefined') {
+        try {
+            const OrigWebSocket = window.WebSocket;
+            const WebSocketProxy = new Proxy(OrigWebSocket, {
+                construct(target, args) {
+                    const instance = Reflect.construct(target, args);
+                    try {
+                        instance.addEventListener('message', function (evt) {
+                            try {
+                                if (isInterestingUrl(instance.url)) {
+                                    let data = evt.data;
+                                    if (data instanceof ArrayBuffer) data = `[binary ws ${data.byteLength}B]`;
+                                    else if (typeof data === 'string' && data.length > 1000) data = data.substring(0, 1000) + '...';
+                                    console.log(`[Reversed-Event] WebSocket [RECV] ${instance.url} body: ${data}`);
+                                }
+                            } catch (e) {}
+                        });
+                    } catch (e) {}
+                    return instance;
+                },
+            });
+            Object.defineProperty(WebSocketProxy, 'prototype', { value: OrigWebSocket.prototype });
+            window.WebSocket = WebSocketProxy;
+        } catch (e) {}
+    }
+
     if (typeof WebAssembly !== 'undefined') {
         hook(WebAssembly, 'instantiate', function (origInstantiate) {
             return function instantiate(bufferSource, importObject) {
@@ -294,6 +324,28 @@
     // breakpoint (which pauses at the caller frame and sometimes can't see args
     // that live in a Promise microtask closure). This wrapper runs at call time
     // so it always sees the real arguments.
+    // Surfaces client-generated nonces/IVs (e.g. the random AES key in the
+    // RSA+AES hybrid request wrapper) so they can be matched against the
+    // request/response that consumes them.
+    try {
+        if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+            hook(window.crypto, 'getRandomValues', function (origGetRandomValues) {
+                return function getRandomValues(array) {
+                    const ret = origGetRandomValues.apply(this, arguments);
+                    try {
+                        let hex = '';
+                        const limit = Math.min(array.length, 64);
+                        for (let i = 0; i < limit; i++) hex += (array[i] < 16 ? '0' : '') + array[i].toString(16);
+                        console.log('[Reversed-Event] CRYPTO-ARGS getRandomValues ' + JSON.stringify([
+                            { __t: array.constructor && array.constructor.name, len: array.length, hex },
+                        ]));
+                    } catch (e) {}
+                    return ret;
+                };
+            });
+        }
+    } catch (e) {}
+
     try {
         const subtle = window.crypto && window.crypto.subtle;
         if (subtle) {
