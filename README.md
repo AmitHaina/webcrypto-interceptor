@@ -42,9 +42,30 @@ node capture_server.js "https://example.com"
 
 # With visible browser (recommended — you can click around)
 node capture_server.js "https://example.com" --gui
+
+# Full site extraction (see below)
+node capture_server.js "https://example.com" --full --gui
 ```
 
 Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`.
+
+---
+
+## `--full` — extract a site's frontend code
+
+Dumps the page's actual HTML/CSS/JS to disk instead of just logging events. Three layers, saved to `extracted_<host>_<timestamp>/`:
+
+- **Raw responses** — every network response body (HTML, CSS, JS, JSON/API), saved mirroring each URL's own path.
+- **Script sources** — every script V8 parses: external files, inline `<script>` blocks, `eval()`/`new Function` strings, webpack chunks — saved under `_inline/` when there's no real URL to mirror.
+- **`_rendered.html`** — a snapshot of `document.documentElement` *after* the page finishes loading. This is what actually matches what you see on screen for JS-heavy/SPA sites, where the raw `index.html` is just an empty shell before React/Vue/Nuxt hydrates it.
+
+```bash
+node capture_server.js "https://example.com" --full
+```
+
+Non-fetched/synthetic URLs (puppeteer internals, `blob:`, `data:`, `webpack://`) are skipped or routed to `_inline/` — they aren't real site files and can't corrupt the output folder.
+
+Not extracted: backend/server-side logic (it never reaches the browser), and asset links in the saved HTML/CSS aren't rewritten to local paths (so `_rendered.html` won't open standalone offline — the pieces are all there, just not relinked).
 
 ---
 
