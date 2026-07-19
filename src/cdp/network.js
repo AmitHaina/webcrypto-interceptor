@@ -3,6 +3,7 @@ const { writeLog } = require('../util/log');
 const { extractContentKey, extractHlsKeyUri } = require('../util/decoders');
 const { scanForSecrets, reportSecrets } = require('../util/secrets');
 const { RESP_KEYWORDS, SKIP_RESP_EXT, SKIP_RESP_CT } = require('../config');
+const { saveFile, isExtracting } = require('./extract');
 
 // Cross-session dedup: same URL+status logged only once within TTL
 const seenResponses = new Map();
@@ -38,6 +39,17 @@ async function attachNetworkCapture(cdpSession) {
                     const text = scanBody.base64Encoded ? Buffer.from(scanBody.body, 'base64').toString('utf8') : scanBody.body;
                     const findings = scanForSecrets(text, url);
                     if (findings.length) reportSecrets(findings, url);
+                }
+            } catch (e) {}
+        }
+
+        // --full mode: save every response body to disk regardless of the
+        // "interesting" filters below — this is what makes it a site dump.
+        if (isExtracting()) {
+            try {
+                const full = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
+                if (full && full.body) {
+                    saveFile(url, full.base64Encoded ? Buffer.from(full.body, 'base64') : full.body);
                 }
             } catch (e) {}
         }

@@ -15,6 +15,7 @@
 // closures (u7buy-style) that never appear on `window`.
 
 const { scanForSecrets, reportSecrets } = require('../util/secrets');
+const { saveFile, isExtracting } = require('./extract');
 
 // Dedup per script URL+id so we don't re-scan the same source multiple times
 // across sessions.
@@ -52,6 +53,8 @@ async function attachScriptScanner(cdpSession) {
             return; // script may already be GC'd or be a wasm module
         }
         if (!source) return;
+
+        if (isExtracting()) saveFile(url, source, scriptId);
 
         const findings = scanForSecrets(source);
         if (findings.length) {

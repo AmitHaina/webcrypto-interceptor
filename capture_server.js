@@ -6,13 +6,15 @@ const { C } = require('./src/util/colors');
 const { writeLog, sessionLogFile } = require('./src/util/log');
 const { shortUrl } = require('./src/util/decoders');
 const { attachToSession } = require('./src/cdp/session');
+const { setExtractDir } = require('./src/cdp/extract');
 
 const targetUrl = process.argv[2];
 if (!targetUrl) {
-    console.error('Usage: node capture_server.js <URL> [--gui]');
+    console.error('Usage: node capture_server.js <URL> [--gui] [--full]');
     process.exit(1);
 }
 const isHeadful = process.argv.includes('--gui');
+const isFull = process.argv.includes('--full');
 
 function resolveChromePath() {
     if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -40,6 +42,11 @@ function formatHookConsole(text) {
     console.log(`${C.bold}🤖 WEBCRYPTO-INTERCEPTOR${C.reset}`);
     console.log(`📡 TARGET: ${targetUrl}`);
     console.log(`🖥️  MODE: ${isHeadful ? 'GUI (Headful)' : 'Headless'}`);
+    let extractDir = null;
+    if (isFull) {
+        extractDir = setExtractDir(targetUrl);
+        console.log(`📦 FULL EXTRACT: ${extractDir}`);
+    }
     console.log(`📝 LOG: ${sessionLogFile}`);
     console.log(`${C.bold}=============================================================${C.reset}\n`);
 
@@ -125,6 +132,13 @@ function formatHookConsole(text) {
     try {
         await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 60000 });
         console.log(`\n${C.green}✅ Page loaded.${C.reset}`);
+        if (extractDir) {
+            // Post-render snapshot — the actual final DOM, not the pre-JS
+            // shell that raw network capture saves for SPAs.
+            const rendered = await page.content();
+            fs.writeFileSync(path.join(extractDir, '_rendered.html'), rendered);
+            console.log(`${C.dim}(rendered DOM saved to _rendered.html)${C.reset}`);
+        }
     } catch (e) {
         console.warn(`${C.yellow}⚠️  Navigation timeout (page may still be usable):${C.reset} ${e.message}`);
     }
