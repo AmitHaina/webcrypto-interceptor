@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const beautify = require('js-beautify');
 
 // ponytail: one global dir per process run. Fine for "visit one page and
 // extract it"; if extracting multiple different sites concurrently ever
@@ -36,6 +37,26 @@ function urlToFilePath(url) {
     return path.join(extractDir, u.hostname, ...safeSegs);
 }
 
+// Minified bundles/responses come back as one giant line — pretty-print
+// text formats so the saved files are actually readable. Skips Buffers
+// (binary content) and anything js-beautify/JSON.parse chokes on, falling
+// back to the raw text untouched rather than losing the capture.
+function prettify(target, content) {
+    if (Buffer.isBuffer(content)) return content;
+    const ext = path.extname(target).toLowerCase();
+    try {
+        if (ext === '.js') return beautify.js(content, { indent_size: 2 });
+        if (ext === '.css') return beautify.css(content, { indent_size: 2 });
+        if (ext === '.json') return JSON.stringify(JSON.parse(content), null, 2);
+        // Extensionless API responses land as .html (SPA-route convention)
+        // but are often JSON bodies — sniff and pretty-print those too,
+        // before falling through to generic HTML beautify.
+        if (ext === '.html' && /^\s*[{[]/.test(content)) return JSON.stringify(JSON.parse(content), null, 2);
+        if (ext === '.html') return beautify.html(content, { indent_size: 2 });
+    } catch (e) { /* not valid/parseable — save as-is below */ }
+    return content;
+}
+
 // url: source URL, or falsy/non-http for inline <script>/eval/internal
 // sources (saved under _inline/).
 function saveFile(url, content, scriptId) {
@@ -44,7 +65,7 @@ function saveFile(url, content, scriptId) {
         const filePath = url ? urlToFilePath(url) : null;
         const target = filePath || path.join(extractDir, '_inline', `${scriptId || Date.now()}.js`);
         fs.mkdirSync(path.dirname(target), { recursive: true });
-        fs.writeFileSync(target, content);
+        fs.writeFileSync(target, prettify(target, content));
     } catch (e) { if (process.env.EXTRACT_DEBUG) console.error('saveFile ERR', url, e.message); }
 }
 

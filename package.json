@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "js-beautify": "^2.0.3",
     "puppeteer": "^24.43.1"
   }
 }

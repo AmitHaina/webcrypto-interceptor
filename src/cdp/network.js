@@ -22,8 +22,26 @@ function alreadySeen(url, status) {
 async function attachNetworkCapture(cdpSession) {
     try { await cdpSession.send('Network.enable'); } catch (e) { return; }
 
-    cdpSession.on('Network.responseReceived', async (params) => {
-        const response = params.response;
+    // CDP only guarantees a response body is fetchable once
+    // Network.loadingFinished fires for that requestId — calling
+    // getResponseBody from responseReceived races the buffer and silently
+    // drops bodies (worst offender: the main document, first response of
+    // every page). Stash response metadata here and do all body-dependent
+    // work off loadingFinished instead.
+    const pending = new Map();
+
+    cdpSession.on('Network.responseReceived', (params) => {
+        pending.set(params.requestId, params.response);
+    });
+    cdpSession.on('Network.loadingFailed', (params) => {
+        pending.delete(params.requestId);
+    });
+
+    cdpSession.on('Network.loadingFinished', async (params) => {
+        const response = pending.get(params.requestId);
+        pending.delete(params.requestId);
+        if (!response) return;
+
         const url = response.url;
         const lower = url.toLowerCase();
         const ctHeader = String((response.headers && (response.headers['content-type'] || response.headers['Content-Type'])) || '').toLowerCase();
