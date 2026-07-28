@@ -9,6 +9,18 @@ function decodeHexEscapes(v) {
 
 function tryBase64ToHex(v) {
     try {
+        const trimmed = v.trim();
+        if (/^[0-9a-fA-F]{16,64}$/.test(trimmed)) return trimmed;
+
+        // Check if base64 represents binary AES key bytes (16, 24, or 32 bytes)
+        // Ensure base64 string structure is valid to avoid false positives on random strings
+        if (/^[A-Za-z0-9+/=_-]{20,64}$/.test(trimmed)) {
+            const buf = Buffer.from(trimmed, 'base64');
+            if ([16, 24, 32].includes(buf.length)) {
+                return buf.toString('hex');
+            }
+        }
+
         const b = Buffer.from(v, 'base64').toString('utf8');
         if (/^[0-9a-fA-F]{16,64}$/.test(b.trim())) return b.trim();
     } catch (e) {}

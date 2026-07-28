@@ -46,13 +46,26 @@ async function attachNetworkCapture(cdpSession) {
         const lower = url.toLowerCase();
         const ctHeader = String((response.headers && (response.headers['content-type'] || response.headers['Content-Type'])) || '').toLowerCase();
 
+        let bodyObj = null;
+        let bodyObjFetched = false;
+        async function getBody() {
+            if (bodyObjFetched) return bodyObj;
+            bodyObjFetched = true;
+            try {
+                bodyObj = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
+            } catch (e) {
+                bodyObj = null;
+            }
+            return bodyObj;
+        }
+
         // Secret-scan path: for any script/json response, fetch body once, scan
         // for hardcoded keys/secrets. Runs independently of the interesting-url
         // filter so we catch keys embedded in third-party bundles too.
         const isScriptLike = /javascript|json|ecmascript/.test(ctHeader) || /\.(?:js|mjs|json)(?:\?|$)/.test(lower);
         if (isScriptLike && !alreadySeen('secretscan:' + url, response.status)) {
             try {
-                const scanBody = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
+                const scanBody = await getBody();
                 if (scanBody && scanBody.body) {
                     const text = scanBody.base64Encoded ? Buffer.from(scanBody.body, 'base64').toString('utf8') : scanBody.body;
                     const findings = scanForSecrets(text, url);
@@ -65,7 +78,7 @@ async function attachNetworkCapture(cdpSession) {
         // "interesting" filters below — this is what makes it a site dump.
         if (isExtracting()) {
             try {
-                const full = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
+                const full = await getBody();
                 if (full && full.body) {
                     saveFile(url, full.base64Encoded ? Buffer.from(full.body, 'base64') : full.body);
                 }
@@ -78,10 +91,8 @@ async function attachNetworkCapture(cdpSession) {
         if (SKIP_RESP_CT.test(ctHeader)) return;
         if (alreadySeen(url, response.status)) return;
 
-        let bodyObj;
-        try {
-            bodyObj = await cdpSession.send('Network.getResponseBody', { requestId: params.requestId });
-        } catch (e) { return; }
+        bodyObj = await getBody();
+        if (!bodyObj) return;
 
         console.log(`\n${C.yellow}[📥 NET RESP] ${response.status} ${url}${C.reset}`);
         if (!bodyObj.body) return;

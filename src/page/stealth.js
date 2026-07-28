@@ -33,37 +33,46 @@
         const OrigFunction = window.Function;
         const FunctionProxy = new Proxy(OrigFunction, {
             construct(target, args) {
-                const src = args[args.length - 1];
-                if (typeof src === 'string' && /debugger/i.test(src)) {
-                    return function () {};
+                if (args.length > 0) {
+                    const srcIdx = args.length - 1;
+                    const src = args[srcIdx];
+                    if (typeof src === 'string' && /\bdebugger\b/i.test(src)) {
+                        args[srcIdx] = src.replace(/\bdebugger\b/gi, '/* bypassed debugger */');
+                    }
                 }
                 return Reflect.construct(target, args);
             },
             apply(target, thisArg, args) {
-                const src = args[args.length - 1];
-                if (typeof src === 'string' && /debugger/i.test(src)) {
-                    return function () {};
+                if (args.length > 0) {
+                    const srcIdx = args.length - 1;
+                    const src = args[srcIdx];
+                    if (typeof src === 'string' && /\bdebugger\b/i.test(src)) {
+                        args[srcIdx] = src.replace(/\bdebugger\b/gi, '/* bypassed debugger */');
+                    }
                 }
                 return Reflect.apply(target, thisArg, args);
             }
         });
         Object.defineProperty(FunctionProxy, 'prototype', { value: OrigFunction.prototype });
         window.Function = FunctionProxy;
+        originalFunctions.set(FunctionProxy, OrigFunction);
     } catch (e) {}
 
     try {
-        const origSetInterval = window.setInterval;
-        window.setInterval = function (fn, ms) {
-            if (typeof fn === 'string' && /debugger/i.test(fn)) return 0;
-            if (typeof fn === 'function' && /debugger/i.test(backupToString.call(fn))) return 0;
-            return origSetInterval.apply(this, arguments);
-        };
-        const origSetTimeout = window.setTimeout;
-        window.setTimeout = function (fn, ms) {
-            if (typeof fn === 'string' && /debugger/i.test(fn)) return 0;
-            if (typeof fn === 'function' && /debugger/i.test(backupToString.call(fn))) return 0;
-            return origSetTimeout.apply(this, arguments);
-        };
+        hook(window, 'setInterval', function (origSetInterval) {
+            return function setInterval(fn, ms) {
+                if (typeof fn === 'string' && /\bdebugger\b/i.test(fn)) return 0;
+                if (typeof fn === 'function' && /\bdebugger\b/i.test(backupToString.call(fn))) return 0;
+                return origSetInterval.apply(this, arguments);
+            };
+        });
+        hook(window, 'setTimeout', function (origSetTimeout) {
+            return function setTimeout(fn, ms) {
+                if (typeof fn === 'string' && /\bdebugger\b/i.test(fn)) return 0;
+                if (typeof fn === 'function' && /\bdebugger\b/i.test(backupToString.call(fn))) return 0;
+                return origSetTimeout.apply(this, arguments);
+            };
+        });
     } catch (e) {}
 
     function isInterestingUrl(url) {
@@ -180,21 +189,55 @@
             });
             Object.defineProperty(WebSocketProxy, 'prototype', { value: OrigWebSocket.prototype });
             window.WebSocket = WebSocketProxy;
+            originalFunctions.set(WebSocketProxy, OrigWebSocket);
+            try {
+                OrigWebSocket.prototype.constructor = WebSocketProxy;
+            } catch (e) {}
         } catch (e) {}
     }
 
     if (typeof WebAssembly !== 'undefined') {
+        function getWasmHash(bytes) {
+            let hash = 5381;
+            const limit = Math.min(bytes.length, 1024);
+            for (let i = 0; i < limit; i++) {
+                hash = (hash * 33) ^ bytes[i];
+            }
+            return (hash >>> 0).toString(16);
+        }
+
+        function dumpWasm(bytes, method) {
+            try {
+                const len = bytes.byteLength;
+                const arr = new Uint8Array(bytes);
+                const hash = getWasmHash(arr);
+                console.log(`[Reversed-Event] WASM WebAssembly.${method} of ${len} bytes hash=${hash}`);
+                if (len < 5000000) {
+                    let hex = '';
+                    for (let i = 0; i < arr.length; i++) {
+                        hex += (arr[i] < 16 ? '0' : '') + arr[i].toString(16);
+                    }
+                    console.log(`[Reversed-Event] WASM-HEX ${hash} ${hex}`);
+                }
+            } catch (e) {}
+        }
+
+        hook(WebAssembly, 'compile', function (origCompile) {
+            return function compile(bufferSource) {
+                const bytes = (bufferSource instanceof ArrayBuffer) ? bufferSource : (bufferSource && bufferSource.buffer);
+                if (bytes) dumpWasm(bytes, 'compile');
+                return origCompile.apply(this, arguments);
+            };
+        });
+
         hook(WebAssembly, 'instantiate', function (origInstantiate) {
             return function instantiate(bufferSource, importObject) {
-                try {
-                    const bytes = (bufferSource instanceof ArrayBuffer) ? bufferSource : (bufferSource && bufferSource.buffer);
-                    if (bytes) {
-                        console.log(`[Reversed-Event] WASM WebAssembly.instantiate compile of ${bytes.byteLength} bytes.`);
-                    }
-                } catch (e) {}
+                const bytes = (bufferSource instanceof ArrayBuffer) ? bufferSource : (bufferSource && bufferSource.buffer);
+                if (bytes) dumpWasm(bytes, 'instantiate');
                 return origInstantiate.apply(this, arguments);
             };
         });
+
         hook(WebAssembly, 'instantiateStreaming', function (origInstantiateStreaming) {
             return function instantiateStreaming(source, importObject) {
                 try {

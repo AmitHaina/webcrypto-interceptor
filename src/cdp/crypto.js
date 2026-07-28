@@ -39,7 +39,7 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
     });
 }
 
-async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap) {
+async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
     let armed = 0;
     for (const method of SUBTLE_METHODS) {
         try {
@@ -48,7 +48,9 @@ async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap) {
             // our stealth.js wrapper. Prototype gives us the real native fn
             // so each of the 12 methods gets a distinct breakpoint id.
             const fn = await cdpSession.send('Runtime.evaluate', {
-                expression: `SubtleCrypto.prototype.${method}`, silent: true
+                expression: `SubtleCrypto.prototype.${method}`,
+                contextId: contextId,
+                silent: true
             });
             if (fn.result && fn.result.type === 'function' && fn.result.objectId) {
                 const bp = await cdpSession.send('Debugger.setBreakpointOnFunctionCall', {
@@ -62,7 +64,7 @@ async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap) {
         } catch (e) {}
     }
     if (armed > 0) {
-        console.log(`${C.magenta}[🕷️  CRYPTO HOOK]${C.reset} ${armed} breakpoints armed on ${C.cyan}${targetLabel}${C.reset}`);
+        console.log(`${C.magenta}[🕷️  CRYPTO HOOK]${C.reset} ${armed} breakpoints armed on ${C.cyan}${targetLabel}${C.reset} (context ${contextId})`);
     }
     return armed;
 }

@@ -120,6 +120,24 @@ function formatHookConsole(text) {
         const text = msg.text();
         if (text.includes('[Reversed-Event]')) {
             writeLog({ type: 'hook_event', message: text });
+            if (text.includes('WASM-HEX ')) {
+                try {
+                    const match = text.match(/WASM-HEX (\w+) ([0-9a-fA-F]+)/);
+                    if (match) {
+                        const hash = match[1];
+                        const hex = match[2];
+                        const buf = Buffer.from(hex, 'hex');
+                        const targetDir = extractDir ? path.join(extractDir, 'wasm') : path.join(process.cwd(), 'wasm_modules');
+                        fs.mkdirSync(targetDir, { recursive: true });
+                        const wasmPath = path.join(targetDir, `module_${hash}.wasm`);
+                        fs.writeFileSync(wasmPath, buf);
+                        console.log(`${C.magenta}[🧬 WASM DUMPED]${C.reset} Saved WebAssembly module (${buf.length} bytes) to ${wasmPath}`);
+                    }
+                } catch (e) {
+                    console.error('Failed to save WASM module:', e.message);
+                }
+                return;
+            }
             console.log(formatHookConsole(text));
             return;
         }

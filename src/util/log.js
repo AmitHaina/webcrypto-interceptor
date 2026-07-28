@@ -12,6 +12,5 @@ function closeLog() {
 }
 
 process.on('exit', () => { try { logStream.end(); } catch (e) {} });
-process.on('SIGINT', () => { try { logStream.end(); } catch (e) {} process.exit(0); });
 
 module.exports = { writeLog, closeLog, sessionLogFile };

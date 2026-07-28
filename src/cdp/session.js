@@ -5,13 +5,20 @@ const { attachScriptScanner } = require('./scripts');
 const { recordCryptoCall, armCryptoBreakpoints } = require('./crypto');
 
 async function attachToSession(cdpSession, targetLabel) {
+    const bpMap = {};
+
+    cdpSession.on('Runtime.executionContextCreated', async (params) => {
+        const contextId = params.context.id;
+        try {
+            await armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId);
+        } catch (e) {}
+    });
+
     try { await cdpSession.send('Runtime.enable'); } catch (e) {}
     try { await cdpSession.send('Debugger.enable'); } catch (e) {}
     await enableAntiDebug(cdpSession);
     await attachNetworkCapture(cdpSession);
     await attachScriptScanner(cdpSession);
-
-    const bpMap = {};
 
     cdpSession.on('Debugger.paused', async (params) => {
         const hitBps = params.hitBreakpoints || [];
@@ -21,8 +28,6 @@ async function attachToSession(cdpSession, targetLabel) {
         }
         try { await cdpSession.send('Debugger.resume'); } catch (e) {}
     });
-
-    await armCryptoBreakpoints(cdpSession, targetLabel, bpMap);
 }
 
 module.exports = { attachToSession };

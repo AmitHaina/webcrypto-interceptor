@@ -33,7 +33,10 @@ function urlToFilePath(url) {
 
     // Defense in depth: collapse '..'/'.' segments so a crafted path can
     // never escape extractDir even if a decoded segment contains them.
-    const safeSegs = p.split('/').filter(seg => seg && seg !== '.' && seg !== '..');
+    // Also sanitize segments to replace characters illegal on Windows filesystem.
+    const safeSegs = p.split('/')
+        .filter(seg => seg && seg !== '.' && seg !== '..')
+        .map(seg => seg.replace(/[<>:"/\\|?*]/g, '_'));
     return path.join(extractDir, u.hostname, ...safeSegs);
 }
 

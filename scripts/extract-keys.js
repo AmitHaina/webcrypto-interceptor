@@ -42,8 +42,16 @@ function extractKeys(lines) {
         try { args = JSON.parse(argsJson); } catch (e) { continue; } // truncated (>4096B) lines aren't valid JSON
 
         if (method === 'importKey') {
-            const [, keyData, algorithm, , usages] = args;
-            if (keyData && keyData.hex && Array.isArray(usages) && usages.includes('decrypt')) {
+            const [format, keyData, algorithm, , usages] = args;
+            if (format === 'jwk' && keyData && typeof keyData.k === 'string' && Array.isArray(usages) && usages.includes('decrypt')) {
+                try {
+                    const base64 = keyData.k.replace(/-/g, '+').replace(/_/g, '/');
+                    const pad = base64.length % 4;
+                    const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+                    const hex = Buffer.from(padded, 'base64').toString('hex');
+                    lastImportedKey = { hex, algorithm: algorithm && algorithm.name };
+                } catch (e) {}
+            } else if (keyData && keyData.hex && Array.isArray(usages) && usages.includes('decrypt')) {
                 lastImportedKey = { hex: keyData.hex, algorithm: algorithm && algorithm.name };
             }
             continue;
