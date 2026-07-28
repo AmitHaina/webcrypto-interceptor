@@ -9,7 +9,7 @@ Unlike script-based hooks (which anti-bot scripts detect easily), this uses real
 ## What it captures
 
 - **Crypto boundary** — every `crypto.subtle.encrypt/decrypt/sign/digest/...` call, with plaintext inputs, key material, and 5-level call stack.
-- **Network traffic** — outbound `fetch`, `XHR`, `WebSocket`, `sendBeacon` bodies; inbound response bodies (auto base64-decoded).
+- **Network traffic** -- outbound `fetch`, `XHR`, `WebSocket`, `sendBeacon` bodies; inbound response bodies (auto base64-decoded).
 - **Video / streaming** — auto-tags m3u8, mpd, HLS, DASH URLs with `[🎬 VIDEO]`.
 - **Content keys** — auto-extracts hex/base64 AES keys from JSON fields (`ck`, `key`, `contentKey`) and HLS `#EXT-X-KEY` lines.
 - **Worker communication** — `Worker.postMessage` and `MessagePort.postMessage`.
