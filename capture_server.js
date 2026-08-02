@@ -17,6 +17,7 @@ const isHeadful = process.argv.includes('--gui');
 const isFull = process.argv.includes('--full');
 
 function resolveChromePath() {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
     if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     if (process.platform === 'darwin') return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     return '/usr/bin/google-chrome';
@@ -28,11 +29,11 @@ function formatHookConsole(text) {
     if (text.includes('[Reversed-Event] CRYPTO-ARGS')) return `${C.hlred}[🔓 CRYPTO ARGS]${C.reset} ${C.green}${stripped.replace('CRYPTO-ARGS ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] JSCRYPTO-ARGS')) return `${C.hlred}[🔐 JSCRYPTO]${C.reset} ${C.green}${stripped.replace('JSCRYPTO-ARGS ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] VIDEO')) return `${C.magenta}[🎬 VIDEO]${C.reset} ${C.green}${stripped.replace('VIDEO ', '')}${C.reset}`;
-    if (text.includes('WASAssembly.instantiate') || text.includes('[Reversed-Event] WASM')) return `${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${stripped}${C.reset}`;
+    if (text.includes('[Reversed-Event] WASM')) return `${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${stripped}${C.reset}`;
     if (text.includes('[Reversed-Event] BLOB CONTENT')) return `${C.hlgrn}[📄 BLOB CONTENT]${C.reset} ${C.green}${stripped.replace('BLOB CONTENT ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] BLOB URL')) return `${C.cyan}[🗂️  BLOB URL]${C.reset} ${C.dim}${stripped.replace('BLOB URL ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] WORKER') || text.includes('[Reversed-Event] PORT')) return `${C.magenta}[📨 MSG]${C.reset} ${C.green}${stripped}${C.reset}`;
-    if (text.includes('STORAGE')) return `${C.yellow}[💾 STORAGE STATE]${C.reset} ${C.dim}${stripped}${C.reset}`;
+    if (text.startsWith('[Reversed-Event] STORAGE ')) return `${C.yellow}[💾 STORAGE STATE]${C.reset} ${C.dim}${stripped}${C.reset}`;
     if (text.includes(' body: ') && !text.includes(' body: [binary')) return `${C.cyan}[🌐 NET]${C.reset} ${stripped}`;
     return `${C.blue}[⚓ EVENT]${C.reset} ${C.dim}${stripped}${C.reset}`;
 }
