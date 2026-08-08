@@ -6,6 +6,7 @@ node_modules/
 *.zip
 *.har
 response.txt
+extracted_*/
 
 # Local test/debug utilities (never push)
 scripts/
