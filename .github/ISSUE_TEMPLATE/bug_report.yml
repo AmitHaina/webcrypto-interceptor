@@ -1,0 +1,74 @@
+name: 🐞 Bug report
+description: Something broke or captured the wrong data.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: check that your target site is one you are **authorized to test**, and search existing issues for duplicates.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug — expected behavior vs. actual behavior.
+      placeholder: "`crypto.subtle` decrypt calls on example.com are tagged [🌐 NETWORK] instead of [🔐 CRYPTO]..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command you ran, plus any console output.
+      placeholder: |
+        node capture_server.js --gui https://example.com
+        (paste relevant terminal output here)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Capture mode
+      options:
+        - Headless (default)
+        - GUI / visible browser
+        - --full site extraction
+        - extract-keys.js (offline analysis)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04 / Windows 11 / macOS 15
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      description: Output of `node --version`
+      placeholder: v20.11.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Session output (sanitized)
+      description: Paste the relevant lines from the terminal or the `session_capture_*.jsonl` file. **Redact any real keys, tokens, cookies, or personal data before pasting.**
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: attestation
+    attributes:
+      label: Responsible use
+      options:
+        - label: I captured this data from a site I own or have explicit permission to test.
+          required: true

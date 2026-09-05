@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & research sharing
+    url: https://discord.gg/QphWRKHvH2
+    about: Ask how to capture a specific target or share findings — Discord is faster than issues for back-and-forth.
+  - name: Security vulnerability
+    url: https://github.com/AmitHaina/webcrypto-interceptor/security/advisories/new
+    about: Report vulnerabilities privately via GitHub Security Advisories. Please do not open a public issue.

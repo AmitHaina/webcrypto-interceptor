@@ -1,0 +1,36 @@
+name: 💡 Feature request
+description: Suggest a new capture source, output format, or capability.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to capture or analyze that the tool currently can't? Describe the real-world scenario.
+      placeholder: "Target loads its AES key inside a dedicated worker and postMessages it to the main thread as an ArrayBuffer transfer..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should happen? Which CDP domain or hook is involved, if you know?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools, manual CDP sessions, workarounds you tried.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: attestation
+    attributes:
+      label: Responsible use
+      options:
+        - label: This feature is for authorized security research / testing of software I own or have permission to test.
+          required: true
