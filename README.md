@@ -9,16 +9,18 @@ Unlike script-based hooks (which anti-bot scripts detect easily), this uses real
 ## What it captures
 
 - **Crypto boundary** — every `crypto.subtle.encrypt/decrypt/sign/digest/...` call, with plaintext inputs, key material, and 5-level call stack.
-- **Network traffic** -- outbound `fetch`, `XHR`, `WebSocket`, `sendBeacon` bodies; inbound response bodies (auto base64-decoded).
+- **Network traffic** — outbound `fetch`, `XHR`, `WebSocket` (send **and** receive), `sendBeacon` bodies; inbound response bodies (auto base64-decoded, AES-key-shaped binaries flagged).
 - **Video / streaming** — auto-tags m3u8, mpd, HLS, DASH URLs with `[🎬 VIDEO]`.
-- **Content keys** — auto-extracts hex/base64 AES keys from JSON fields (`ck`, `key`, `contentKey`) and HLS `#EXT-X-KEY` lines.
-- **Worker communication** — `Worker.postMessage` and `MessagePort.postMessage`.
+- **Content keys** — auto-extracts hex/base64 AES keys from JSON fields (`ck`, `key`, `contentKey`, `aesKey`) and HLS `#EXT-X-KEY` lines. Keys served as `application/octet-stream` are caught too (a common HLS/DRM delivery path).
+- **Worker communication** — `Worker.postMessage` and `MessagePort.postMessage`, plus hook injection **inside worker scopes** (dedicated/shared/service workers run their own crypto — you see it now).
 - **Blob URLs** — dumps the actual JS source of workers/eval bundles created via `URL.createObjectURL`.
 - **Storage writes** — flags `localStorage`/`sessionStorage` sets containing tokens, keys, or auth material.
-- **WebAssembly** — logs every WASM module loaded.
+- **Randomness** — `crypto.getRandomValues` sampled with rate-limiting so nonce generation is visible without flooding.
+- **WebAssembly** — logs every WASM module loaded and dumps modules < 5 MB to disk.
+- **Secrets scanner** — PEM/DER keys, hardcoded `apiKey`/`secretKey` assignments, AES-shaped hex constants, JWTs — scanned in every script source (via `Debugger.scriptParsed`, including inline/eval/webpack chunks) and every interesting response body.
 - **Anti-anti-debug** — blackboxes scripts and neutralizes `debugger;` traps so the page loads normally.
 
-Everything above is written to `session_capture_<timestamp>.jsonl` for offline analysis.
+Everything above is written to a `session_capture_<timestamp>.jsonl` file for offline analysis, and a markdown **session summary** is printed and saved when you stop with `Ctrl+C`.
 
 ---
 
@@ -30,7 +32,11 @@ cd webcrypto-interceptor
 npm install
 ```
 
-Requires Node.js 16+ and Chrome installed locally.
+Requires **Node.js 18+** and Chrome installed locally. If Chrome is somewhere unusual, point at it:
+
+```bash
+PUPPETEER_EXECUTABLE_PATH="/path/to/chrome" node capture_server.js "https://example.com"
+```
 
 ---
 
@@ -47,7 +53,28 @@ node capture_server.js "https://example.com" --gui
 node capture_server.js "https://example.com" --full --gui
 ```
 
-Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`.
+Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C` — the JSONL log is flushed and a session summary printed.
+
+### All options
+
+| Option | Meaning |
+|---|---|
+| `--gui` | Show the browser window |
+| `--full` | Extract every script/response body to disk |
+| `--out <dir>` | Base directory for the extract folder and session log |
+| `--timeout <sec>` | Page navigation timeout (default 60) |
+| `--ua <user-agent>` | Override the User-Agent on every attached target |
+| `--proxy <server>` | Route Chrome through a proxy, e.g. `http://127.0.0.1:8080` |
+| `--all-traffic` | Disable the analytics/tracker noise filter |
+| `--help` | Show help |
+
+### Extract AES keys from a captured session
+
+```bash
+node scripts/extract-keys.js session_capture_1700000000000.jsonl
+```
+
+Correlates `importKey` + `decrypt` calls with the video segment URLs around them and prints a ready-to-run `openssl` command per key/IV pair.
 
 ---
 
@@ -55,9 +82,9 @@ Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`
 
 Dumps the page's actual HTML/CSS/JS to disk instead of just logging events. Three layers, saved to `extracted_<host>_<timestamp>/`:
 
-- **Raw responses** — every network response body (HTML, CSS, JS, JSON/API), saved mirroring each URL's own path.
+- **Raw responses** — every network response body (HTML, CSS, JS, JSON/API), saved mirroring each URL's own path. URLs that collide on the same path (e.g. `?v=1` vs `?v=2`) get a short hash suffix instead of overwriting each other.
 - **Script sources** — every script V8 parses: external files, inline `<script>` blocks, `eval()`/`new Function` strings, webpack chunks — saved under `_inline/` when there's no real URL to mirror.
-- **`_rendered.html`** — a snapshot of `document.documentElement` *after* the page finishes loading. This is what actually matches what you see on screen for JS-heavy/SPA sites, where the raw `index.html` is just an empty shell before React/Vue/Nuxt hydrates it.
+- **`_rendered.html`** — a snapshot of `document.documentElement` after the page finishes loading (saved even when navigation times out but the page is usable). This is what actually matches what you see on screen for JS-heavy/SPA sites, where the raw `index.html` is just an empty shell before React/Vue/Nuxt hydrates it.
 
 ```bash
 node capture_server.js "https://example.com" --full
@@ -73,19 +100,32 @@ Not extracted: backend/server-side logic (it never reaches the browser), and ass
 
 | Tag | Meaning |
 |---|---|
-| `[🔓 CRYPTO BOUNDARY]` | A `crypto.subtle.*` call fired — inputs and stack shown |
+| `[🔓 CRYPTO BOUNDARY]` | A `crypto.subtle.*` call fired — native breakpoint hit, real call site shown |
+| `[🔓 CRYPTO ARGS]` | Page-side capture of `crypto.subtle` arguments (inputs, keys, IVs) |
+| `[🔐 JSCRYPTO]` | Pure-JS crypto calls: CryptoJS, JSEncrypt, sjcl |
+| `[🎲 RANDOM]` | `crypto.getRandomValues` output (rate-limited) |
 | `[🌐 NET]` | Outbound fetch/XHR with body |
 | `[📥 NET RESP]` | Response body (base64-decoded if needed) |
 | `[🎬 VIDEO]` | Streaming URL (m3u8/hls/mp4) |
 | `[🔑 CONTENT KEY]` | AES key auto-extracted from response |
+| `[🔑 RAW AES KEY]` | 128/192/256-bit binary key body (octet-stream `.key` included) |
 | `[🔐 HLS AES KEY URI]` | HLS AES-128 key URL from `#EXT-X-KEY` |
+| `[🔑 SECRET]` | Scanner finding: PEM/DER key, hardcoded secret, or JWT |
 | `[📨 MSG]` | Worker or MessagePort postMessage |
 | `[🗂️ BLOB URL]` | New blob URL created |
 | `[📄 BLOB CONTENT]` | Blob source code (JS/JSON/WASM under 200KB) |
 | `[💾 STORAGE STATE]` | Interesting localStorage/sessionStorage write |
 | `[🧬 WASM INJECT]` | WebAssembly module loaded |
+| `[🧬 WASM DUMPED]` | WASM module saved to disk |
+| `[🕷️ CRYPTO HOOK]` | Native breakpoints armed on a target |
 
 ---
+
+## Architecture notes
+
+- **Two event channels.** Page hooks prefer a structured `Runtime.addBinding` transport (JSON envelopes, no truncation, immune to site console spam) and fall back to tagged `console.log` lines when no binding exists. Both are deduped and both land in the JSONL log.
+- **Worker support.** Workers never see `evaluateOnNewDocument` and don't relay console output — so the toolkit attaches to worker targets directly, evaluates the (globalThis-based) hook source there, and relies on the binding channel for transport.
+- **Leak-free breakpoints.** Native `SubtleCrypto.prototype` breakpoints are armed per execution context and removed when the context dies — long SPA sessions no longer accumulate thousands of dead breakpoints.
 
 ## Extend
 
@@ -97,24 +137,23 @@ RESP_KEYWORDS.push('mycustomendpoint', '/api/decrypt');
 
 ---
 
-## Structure
+## Development
 
+```bash
+npm test        # node:test suite — decoders, secrets scanner, extract-keys, path safety, CLI, event transport
+npm run lint    # eslint
 ```
-capture_server.js       ← entry point
-src/
-  config.js             ← keywords & method lists
-  cdp/                  ← Chrome DevTools Protocol logic
-  page/stealth.js       ← page-side hooks
-  util/                 ← colors, logging, decoders
-```
+
+No test database, no network, no Chrome needed — the suite exercises pure modules only.
 
 ---
+
+## License
+
+[MIT](LICENSE) — with a responsible-use notice: this tool is for authorized security research and reverse-engineering of software you own or have permission to test.
 
 ## Community
 
 Join the Discord for questions and research sharing:
 
-[![Discord](https://img.shields.io/discord/1110000000000000000?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/QphWRKHvH2)
-
 [https://discord.gg/QphWRKHvH2](https://discord.gg/QphWRKHvH2)
-
