@@ -12,10 +12,11 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
 
     // The top frame is our page-side wrapper in stealth.js (functionName equals
     // one of the SUBTLE_METHODS). Skip it so the reported caller is the site's
-    // real call site.
+    // real call site. Only skip ONE wrapper level — a site function that is
+    // itself legitimately named "encrypt"/"decrypt" must not be skipped too.
     const wrapperNames = new Set(SUBTLE_METHODS);
     let skip = 0;
-    while (skip < frames.length && wrapperNames.has(frames[skip].functionName)) skip++;
+    if (skip < frames.length && wrapperNames.has(frames[skip].functionName)) skip++;
     const displayFrames = frames.slice(skip);
     if (!displayFrames.length) return;
 
@@ -39,7 +40,16 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
     });
 }
 
+// Per-context armament bookkeeping. Contexts are created and destroyed
+// constantly (navigations, iframes); arming 12 breakpoints per context without
+// ever removing them leaks both Debugger.breakpoint entries and RemoteObject
+// handles until long sessions grind to a halt. We now track what was armed
+// for each context and tear it down on executionContextDestroyed.
+const armedContexts = new Map(); // contextId -> { breakpointIds: [], objectIds: [] }
+
 async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
+    if (armedContexts.has(contextId)) return 0; // already armed for this context
+    const record = { breakpointIds: [], objectIds: [] };
     let armed = 0;
     for (const method of SUBTLE_METHODS) {
         try {
@@ -53,20 +63,40 @@ async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
                 silent: true
             });
             if (fn.result && fn.result.type === 'function' && fn.result.objectId) {
+                record.objectIds.push(fn.result.objectId);
                 const bp = await cdpSession.send('Debugger.setBreakpointOnFunctionCall', {
                     objectId: fn.result.objectId
                 });
                 if (bp.breakpointId) {
                     bpMap[bp.breakpointId] = `crypto.subtle.${method}`;
+                    record.breakpointIds.push(bp.breakpointId);
                     armed++;
                 }
             }
         } catch (e) {}
     }
     if (armed > 0) {
+        armedContexts.set(contextId, record);
         console.log(`${C.magenta}[🕷️  CRYPTO HOOK]${C.reset} ${armed} breakpoints armed on ${C.cyan}${targetLabel}${C.reset} (context ${contextId})`);
     }
     return armed;
 }
 
-module.exports = { recordCryptoCall, armCryptoBreakpoints };
+// Tear down everything armed for contexts that just died. Returns the number
+// of breakpoints removed so the caller can log if verbose.
+async function cleanupContexts(cdpSession, destroyedContextIds, bpMap) {
+    for (const contextId of destroyedContextIds) {
+        const record = armedContexts.get(contextId);
+        if (!record) continue;
+        for (const bpId of record.breakpointIds) {
+            try { await cdpSession.send('Debugger.removeBreakpoint', { breakpointId: bpId }); } catch (e) {}
+            delete bpMap[bpId];
+        }
+        for (const objectId of record.objectIds) {
+            try { await cdpSession.send('Runtime.releaseObject', { objectId }); } catch (e) {}
+        }
+        armedContexts.delete(contextId);
+    }
+}
+
+module.exports = { recordCryptoCall, armCryptoBreakpoints, cleanupContexts };

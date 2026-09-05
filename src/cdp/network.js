@@ -19,6 +19,16 @@ function alreadySeen(url, status) {
     return false;
 }
 
+// HLS/DRM keys are almost always served as application/octet-stream — the
+// content-type skip must never swallow them, or the RAW-AES-KEY detector
+// below never sees the most common key delivery path. Same for manifests
+// (m3u8/mpd), which some servers mislabel as generic streams.
+function isKeyOrManifest(url, ctHeader) {
+    return /\.key(\?|$)/i.test(url)
+        || /mpegurl|dash\+xml|application\/mpd/i.test(ctHeader)
+        || /vnd\.apple\.mpegurl/i.test(ctHeader);
+}
+
 async function attachNetworkCapture(cdpSession) {
     try { await cdpSession.send('Network.enable'); } catch (e) { return; }
 
@@ -29,18 +39,27 @@ async function attachNetworkCapture(cdpSession) {
     // every page). Stash response metadata here and do all body-dependent
     // work off loadingFinished instead.
     const pending = new Map();
+    const PENDING_TTL_MS = 300000; // stalled-forever requests must not leak
 
     cdpSession.on('Network.responseReceived', (params) => {
-        pending.set(params.requestId, params.response);
+        pending.set(params.requestId, { response: params.response, ts: Date.now() });
     });
     cdpSession.on('Network.loadingFailed', (params) => {
         pending.delete(params.requestId);
     });
+    cdpSession.on('Network.requestWillBeSent', () => {
+        // opportunistic sweep: cheap, keeps the map bounded on long sessions
+        const now = Date.now();
+        for (const [k, v] of pending) {
+            if (now - v.ts > PENDING_TTL_MS) pending.delete(k);
+        }
+    });
 
     cdpSession.on('Network.loadingFinished', async (params) => {
-        const response = pending.get(params.requestId);
+        const entry = pending.get(params.requestId);
         pending.delete(params.requestId);
-        if (!response) return;
+        if (!entry) return;
+        const response = entry.response;
 
         const url = response.url;
         const lower = url.toLowerCase();
@@ -88,7 +107,7 @@ async function attachNetworkCapture(cdpSession) {
         // Existing interesting-response path
         if (!RESP_KEYWORDS.some(k => lower.includes(k))) return;
         if (SKIP_RESP_EXT.test(lower)) return;
-        if (SKIP_RESP_CT.test(ctHeader)) return;
+        if (SKIP_RESP_CT.test(ctHeader) && !isKeyOrManifest(lower, ctHeader)) return;
         if (alreadySeen(url, response.status)) return;
 
         bodyObj = await getBody();

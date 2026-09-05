@@ -10,6 +10,18 @@ const { C } = require('./colors');
 const { writeLog } = require('./log');
 
 const seenSecrets = new Set();
+const MAX_SEEN = 20000;
+
+function noteSeen(sig) {
+    if (seenSecrets.has(sig)) return true;
+    seenSecrets.add(sig);
+    // FIFO cap: Sets preserve insertion order; drop the oldest fifth when full
+    if (seenSecrets.size > MAX_SEEN) {
+        let drop = Math.floor(MAX_SEEN / 5);
+        for (const v of seenSecrets) { seenSecrets.delete(v); if (--drop <= 0) break; }
+    }
+    return false;
+}
 
 function scanForSecrets(body /* , url */) {
     const findings = [];
@@ -25,9 +37,10 @@ function scanForSecrets(body /* , url */) {
     // 2. Bare-base64 DER keys inside strings — no PEM wrapper.
     // RSA SPKI (public) starts with `MIIBIj...`, longer variants `MII[E-Z]...`.
     // RSA PKCS#8 (private) starts with `MIIEv...` / `MIIJKAI...`.
-    // We require the value to sit inside a quoted string of substantial length
-    // to keep false-positives down.
-    const derRe = /['"`](MII[A-Za-z0-9+/]{160,4000}={0,3})['"`]/g;
+    // EC public keys (P-256/P-384 SPKI, ~91-120 bytes -> ~124-170 b64 chars)
+    // start with `MFkw` / `MHY` — they never start with MII, so they need
+    // their own branch or the DER_EC_PUBLIC_KEY classification is dead code.
+    const derRe = /['"`]((?:MII[A-Za-z0-9+/]{160,4000}|MFkw[A-Za-z0-9+/]{80,4000}|MHY[A-Za-z0-9+/]{100,4000})={0,3})['"`]/g;
     while ((m = derRe.exec(body)) !== null) {
         const val = m[1];
         // Classify by DER header prefix
@@ -61,8 +74,7 @@ function scanForSecrets(body /* , url */) {
 function reportSecrets(findings, sourceUrl) {
     for (const f of findings) {
         const sig = f.type + '|' + f.value.substring(0, 200);
-        if (seenSecrets.has(sig)) continue;
-        seenSecrets.add(sig);
+        if (noteSeen(sig)) continue;
         const preview = f.value.length > 400 ? f.value.substring(0, 400) + '...' : f.value;
         console.log(`${C.hlred}[\ud83d\udd11 SECRET] ${f.type}${C.reset} in ${C.dim}${sourceUrl}${C.reset}\n   ${C.green}${preview}${C.reset}`);
         writeLog({ type: 'secret_found', kind: f.type, url: sourceUrl, value: f.value });

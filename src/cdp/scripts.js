@@ -18,8 +18,20 @@ const { scanForSecrets, reportSecrets } = require('../util/secrets');
 const { saveFile, isExtracting } = require('./extract');
 
 // Dedup per script URL+id so we don't re-scan the same source multiple times
-// across sessions.
+// across sessions. FIFO-capped: a Set keeps insertion order, so when the cap
+// is hit we drop the oldest fifth instead of growing unbounded on long
+// sessions (SPAs parsing thousands of chunks).
+const MAX_SCANNED = 5000;
 const scannedScripts = new Set();
+function noteScanned(key) {
+    if (scannedScripts.has(key)) return true;
+    scannedScripts.add(key);
+    if (scannedScripts.size > MAX_SCANNED) {
+        let drop = Math.floor(MAX_SCANNED / 5);
+        for (const v of scannedScripts) { scannedScripts.delete(v); if (--drop <= 0) break; }
+    }
+    return false;
+}
 
 // Skip obviously-uninteresting sources: chrome internals, extensions, empty
 // generated wrappers.
@@ -42,8 +54,7 @@ async function attachScriptScanner(cdpSession) {
         if (shouldSkipUrl(url)) return;
 
         const dedupKey = (url || '<inline>') + '|' + hash;
-        if (scannedScripts.has(dedupKey)) return;
-        scannedScripts.add(dedupKey);
+        if (noteScanned(dedupKey)) return;
 
         let source;
         try {

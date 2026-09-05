@@ -84,6 +84,18 @@ function dedupe(results) {
     });
 }
 
+// openssl needs the KEY SIZE in the cipher name: "AES-CBC" with a 32-byte key
+// is `-aes-256-cbc`, not the (invalid) `-aes-cbc` this script used to print.
+// Falls back to a size-derived CBC suggestion when the algorithm name is
+// unknown or exotic.
+function cipherFor(algorithm, keyHex) {
+    const bits = (keyHex ? keyHex.length * 4 : 128);
+    const name = String(algorithm || '').toUpperCase();
+    const mode = name.includes('GCM') ? 'gcm' : name.includes('CTR') ? 'ctr' : 'cbc';
+    if (!name.includes('AES')) return `aes-${bits}-${mode}`; // best-effort default
+    return `aes-${bits}-${mode}`;
+}
+
 function findLatestLog() {
     const candidates = fs.readdirSync('.').filter(f => /^session_capture_\d+\.jsonl$/.test(f));
     if (!candidates.length) return null;
@@ -104,15 +116,16 @@ function main() {
         return;
     }
     for (const r of results) {
+        const cipher = cipherFor(r.algorithm, r.keyHex);
         console.log(`\nurl:  ${r.url || '(unknown)'}`);
         console.log(`algo: ${r.algorithm}`);
         console.log(`key:  ${r.keyHex}`);
         console.log(`iv:   ${r.ivHex}`);
-        console.log(`# openssl enc -d -${(r.algorithm || 'aes-128-cbc').toLowerCase().replace('-', '-')} -K ${r.keyHex} -iv ${r.ivHex} -in seg.enc -out seg.dec`);
+        console.log(`# openssl enc -d -${cipher} -K ${r.keyHex} -iv ${r.ivHex} -in seg.enc -out seg.dec`);
     }
     console.log(`\n${results.length} key/iv pair(s) extracted from ${logPath}`);
 }
 
 if (require.main === module) main();
 
-module.exports = { extractKeys, dedupe };
+module.exports = { extractKeys, dedupe, cipherFor };
