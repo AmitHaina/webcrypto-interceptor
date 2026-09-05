@@ -1,9 +1,54 @@
 {
+  "name": "webcrypto-interceptor",
+  "version": "0.2.0",
+  "description": "Stealth CDP-based reverse-engineering toolkit: capture crypto.subtle calls, network traffic, workers, WASM and embedded secrets from any website.",
+  "license": "MIT",
+  "author": "Amit Haina",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AmitHaina/webcrypto-interceptor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AmitHaina/webcrypto-interceptor/issues"
+  },
+  "homepage": "https://github.com/AmitHaina/webcrypto-interceptor#readme",
+  "keywords": [
+    "cdp",
+    "chrome-devtools-protocol",
+    "webcrypto",
+    "crypto",
+    "reverse-engineering",
+    "traffic-capture",
+    "puppeteer",
+    "tls",
+    "hls",
+    "drm",
+    "anti-debug"
+  ],
+  "main": "capture_server.js",
+  "bin": {
+    "webcrypto-interceptor": "capture_server.js"
+  },
+  "files": [
+    "capture_server.js",
+    "src/",
+    "scripts/extract-keys.js",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "start": "node capture_server.js"
+    "start": "node capture_server.js",
+    "test": "node tests/run.js",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "js-beautify": "^2.0.3",
     "puppeteer": "^24.43.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
   }
 }

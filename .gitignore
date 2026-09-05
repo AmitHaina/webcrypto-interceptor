@@ -7,9 +7,13 @@ node_modules/
 *.har
 response.txt
 extracted_*/
+wasm_modules/
+*_summary.md
 
-# Local test/debug utilities (never push)
+# Local test/debug utilities (never push) — extract-keys.js is force-tracked
+# and intentionally exempt below
 scripts/
+!scripts/extract-keys.js
 
 # Log files
 *.log
