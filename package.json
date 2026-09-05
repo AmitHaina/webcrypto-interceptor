@@ -1,6 +1,6 @@
 {
   "name": "webcrypto-interceptor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Stealth CDP-based reverse-engineering toolkit: capture crypto.subtle calls, network traffic, workers, WASM and embedded secrets from any website.",
   "license": "MIT",
   "author": "Amit Haina",
@@ -33,6 +33,7 @@
     "capture_server.js",
     "src/",
     "scripts/extract-keys.js",
+    "scripts/verify-reimpl.js",
     "README.md",
     "LICENSE"
   ],

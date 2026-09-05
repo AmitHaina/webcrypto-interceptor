@@ -45,10 +45,22 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
 // ever removing them leaks both Debugger.breakpoint entries and RemoteObject
 // handles until long sessions grind to a halt. We now track what was armed
 // for each context and tear it down on executionContextDestroyed.
-const armedContexts = new Map(); // contextId -> { breakpointIds: [], objectIds: [] }
+//
+// Keyed WeakMap(session) -> Map(contextId -> record): executionContextIds are
+// only unique WITHIN one CDP session, so a module-level Map(contextId) made
+// two concurrently attached targets with the same context id collide — the
+// second target's context was skipped as "already armed" and captured nothing.
+const sessionArmed = new WeakMap();
+
+function armedFor(cdpSession) {
+    let m = sessionArmed.get(cdpSession);
+    if (!m) { m = new Map(); sessionArmed.set(cdpSession, m); }
+    return m;
+}
 
 async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
-    if (armedContexts.has(contextId)) return 0; // already armed for this context
+    const perSession = armedFor(cdpSession);
+    if (perSession.has(contextId)) return 0; // already armed for this context
     const record = { breakpointIds: [], objectIds: [] };
     let armed = 0;
     for (const method of SUBTLE_METHODS) {
@@ -76,7 +88,7 @@ async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
         } catch (e) {}
     }
     if (armed > 0) {
-        armedContexts.set(contextId, record);
+        perSession.set(contextId, record);
         console.log(`${C.magenta}[🕷️  CRYPTO HOOK]${C.reset} ${armed} breakpoints armed on ${C.cyan}${targetLabel}${C.reset} (context ${contextId})`);
     }
     return armed;
@@ -85,8 +97,9 @@ async function armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId) {
 // Tear down everything armed for contexts that just died. Returns the number
 // of breakpoints removed so the caller can log if verbose.
 async function cleanupContexts(cdpSession, destroyedContextIds, bpMap) {
+    const perSession = armedFor(cdpSession);
     for (const contextId of destroyedContextIds) {
-        const record = armedContexts.get(contextId);
+        const record = perSession.get(contextId);
         if (!record) continue;
         for (const bpId of record.breakpointIds) {
             try { await cdpSession.send('Debugger.removeBreakpoint', { breakpointId: bpId }); } catch (e) {}
@@ -95,7 +108,7 @@ async function cleanupContexts(cdpSession, destroyedContextIds, bpMap) {
         for (const objectId of record.objectIds) {
             try { await cdpSession.send('Runtime.releaseObject', { objectId }); } catch (e) {}
         }
-        armedContexts.delete(contextId);
+        perSession.delete(contextId);
     }
 }
 

@@ -16,7 +16,6 @@ const fs = require('fs');
 const path = require('path');
 const { C } = require('../util/colors');
 const { writeLog } = require('../util/log');
-const { shortUrl } = require('../util/decoders');
 const { trackEvent, trackSecret, trackWasmDump } = require('../util/summary');
 
 // Dedupe window for event uids (Set with FIFO cap).

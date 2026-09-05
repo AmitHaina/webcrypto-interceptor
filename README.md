@@ -72,6 +72,9 @@ Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`
 | `--ua <user-agent>` | Override the User-Agent on every attached target |
 | `--proxy <server>` | Route Chrome through a proxy, e.g. `http://127.0.0.1:8080` |
 | `--all-traffic` | Disable the analytics/tracker noise filter |
+| `--hook <expr>` | Invisible breakpoint hook on a site function — logs every call with args + stack (repeatable). The function is never wrapped, so `fn.toString()` checks see nothing |
+| `--hook-return <expr>` | Like `--hook`, plus breakpoints on the function's return locations: records (input → output) pairs for `scripts/verify-reimpl.js` |
+| `--heap-diff <sec>` | Snapshot the heap after load, wait, snapshot again: report newly allocated user-retained strings (secret-classified), typed arrays, object counts |
 | `--help` | Show help |
 
 ### Extract AES keys from a captured session
@@ -81,6 +84,27 @@ node scripts/extract-keys.js session_capture_1700000000000.jsonl
 ```
 
 Correlates `importKey` + `decrypt` calls with the video segment URLs around them and prints a ready-to-run `openssl` command per key/IV pair.
+
+### Verify a reimplementation (the oracle loop)
+
+Reading obfuscated JS gives you a hypothesis, not a fact. Capture ground truth first, then check your rewrite of the function against it:
+
+```bash
+# 1. Capture (input -> output) pairs from the real function, invisibly:
+node capture_server.js "https://example.com" --hook-return "window.buildPayload"
+
+# 2. Write your own version in ./my_payload.js:
+#    module.exports = function buildPayload(user, ts) { ... }
+
+# 3. Verify it against the captured corpus — your code runs in an isolated
+#    about:blank page: no network, no access to the target or its closures.
+node scripts/verify-reimpl.js \
+     --session session_capture_1700000000000.jsonl \
+     --label "window.buildPayload" \
+     --candidate ./my_payload.js
+```
+
+The verdict is a structured diff with concrete counterexamples — `matched: 41/42`, plus the exact inputs where your output diverges. Iterate until the diff is empty; exit code `0` means verified (scriptable). Extra `--input '["a", 1]'` arguments run as smoke tests without affecting the verdict.
 
 ---
 
@@ -124,6 +148,9 @@ Not extracted: backend/server-side logic (it never reaches the browser), and ass
 | `[🧬 WASM INJECT]` | WebAssembly module loaded |
 | `[🧬 WASM DUMPED]` | WASM module saved to disk |
 | `[🕷️ CRYPTO HOOK]` | Native breakpoints armed on a target |
+| `[🪝 HOOK]` | A `--hook`-ed site function fired — args + call stack recorded |
+| `[🪝 HOOK PAIR]` | A `--hook-return`-ed function returned — (input, output) pair recorded |
+| `[🧠 HEAP DIFF]` | Heap snapshot diff: what the last N seconds of activity allocated |
 
 ---
 

@@ -14,7 +14,6 @@
 // (defaults to the newest session_capture_*.jsonl in the cwd)
 
 const fs = require('fs');
-const path = require('path');
 
 const VIDEO_URL_RE = /\.(m3u8|mpd|ts|mp4|m4s|webm|mkv|key|bin)(\?|$)/i;
 

@@ -47,3 +47,38 @@ test('--help short-circuits', () => {
     assert.ok(HELP.includes('--gui'));
     assert.ok(HELP.includes('webcrypto-interceptor'));
 });
+
+test('parses repeatable --hook and --hook-return', () => {
+    const o = parseArgv(['https://example.com', '--hook', 'window.a', '--hook', 'window.b', '--hook-return', 'window.sign']);
+    assert.deepEqual(o.hooks, [
+        { expr: 'window.a', captureReturn: false },
+        { expr: 'window.b', captureReturn: false }
+    ]);
+    assert.deepEqual(o.hookReturns, [
+        { expr: 'window.sign', captureReturn: true }
+    ]);
+});
+
+test('parses --heap-diff seconds', () => {
+    const o = parseArgv(['https://example.com', '--heap-diff', '30']);
+    assert.equal(o.heapDiff, 30);
+});
+
+test('defaults: no hooks, heap diff disabled', () => {
+    const o = parseArgv(['https://example.com']);
+    assert.deepEqual(o.hooks, []);
+    assert.deepEqual(o.hookReturns, []);
+    assert.equal(o.heapDiff, 0);
+});
+
+test('rejects empty hook expression', () => {
+    assert.throws(() => parseArgv(['https://example.com', '--hook', '   ']), /must not be empty/);
+    assert.throws(() => parseArgv(['https://example.com', '--hook-return', '']), /must not be empty/);
+});
+
+test('rejects invalid heap-diff', () => {
+    // A negative number must use the '=' form; the space form ('--heap-diff -5')
+    // is rejected earlier by parseArgs as an ambiguous argument.
+    assert.throws(() => parseArgv(['https://example.com', '--heap-diff=-5']), /non-negative/);
+    assert.throws(() => parseArgv(['https://example.com', '--heap-diff', 'abc']), /non-negative/);
+});

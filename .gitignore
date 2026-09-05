@@ -10,10 +10,13 @@ extracted_*/
 wasm_modules/
 *_summary.md
 
-# Local test/debug utilities (never push) — extract-keys.js is force-tracked
-# and intentionally exempt below
-scripts/
+# Local test/debug utilities (never push) — shipped tools are exempt below
+# (they are part of the npm package, see package.json "files").
+# NOTE: 'scripts/*' (not 'scripts/') — git cannot re-include children of an
+# excluded directory, only of an excluded glob.
+scripts/*
 !scripts/extract-keys.js
+!scripts/verify-reimpl.js
 
 # Log files
 *.log

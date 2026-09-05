@@ -4,12 +4,14 @@ const { attachNetworkCapture } = require('./network');
 const { attachScriptScanner } = require('./scripts');
 const { recordCryptoCall, armCryptoBreakpoints, cleanupContexts } = require('./crypto');
 const { handleStructuredEvent, handleLegacyConsoleText } = require('./events');
+const { createHookState, armHooks, cleanupHookContexts, handleHookPause } = require('./hooks');
 
 const BINDING_NAME = '__wci';
 
 async function attachToSession(cdpSession, targetLabel, opts) {
     const options = opts || {};
     const bpMap = {};
+    const hookState = createHookState(options.hooks);
 
     // ---- structured event transport -------------------------------------
     // Runtime.addBinding exposes a global function `__wci(payload)` inside
@@ -59,15 +61,19 @@ async function attachToSession(cdpSession, targetLabel, opts) {
         } catch (e) {}
     });
 
-    // ---- crypto breakpoints ----------------------------------------------
+    // ---- crypto breakpoints + user function hooks --------------------------
     cdpSession.on('Runtime.executionContextCreated', async (params) => {
         const contextId = params.context.id;
         try {
             await armCryptoBreakpoints(cdpSession, targetLabel, bpMap, contextId);
         } catch (e) {}
+        try {
+            await armHooks(cdpSession, hookState, targetLabel, contextId);
+        } catch (e) {}
     });
     cdpSession.on('Runtime.executionContextDestroyed', async (params) => {
         try { await cleanupContexts(cdpSession, [params.executionContextId], bpMap); } catch (e) {}
+        try { await cleanupHookContexts(cdpSession, [params.executionContextId], hookState); } catch (e) {}
     });
 
     try { await cdpSession.send('Runtime.enable'); } catch (e) {}
@@ -78,7 +84,12 @@ async function attachToSession(cdpSession, targetLabel, opts) {
 
     cdpSession.on('Debugger.paused', async (params) => {
         const hitBps = params.hitBreakpoints || [];
-        if (hitBps.some(b => bpMap[b])) {
+        let handled = false;
+        if (hitBps.some(b => hookState.callBp.has(b) || hookState.retBp.has(b))) {
+            try { handled = await handleHookPause(cdpSession, params, hookState, targetLabel); }
+            catch (e) { console.warn(`${C.red}Hook record error:${C.reset}`, e.message); }
+        }
+        if (!handled && hitBps.some(b => bpMap[b])) {
             try { await recordCryptoCall(cdpSession, params, bpMap, targetLabel); }
             catch (e) { console.warn(`${C.red}Record error:${C.reset}`, e.message); }
         }

@@ -8,7 +8,9 @@ const state = {
     counts: Object.create(null),   // type -> count
     urls: new Map(),               // url -> hits (capped)
     secrets: 0,
-    wasmDumped: 0
+    wasmDumped: 0,
+    heapDiffs: 0,
+    heapSecrets: 0
 };
 
 const MAX_URLS = 500;
@@ -24,8 +26,12 @@ function trackEvent(type, url) {
     }
 }
 
-function trackSecret() { state.secrets++; }
+function trackSecret(fromHeap) {
+    state.secrets++;
+    if (fromHeap) state.heapSecrets++;
+}
 function trackWasmDump() { state.wasmDumped++; }
+function trackHeapDiff() { state.heapDiffs++; }
 
 function topUrls(n) {
     return [...state.urls.entries()]
@@ -42,8 +48,9 @@ function renderSummary(targetUrl, sessionLogFile) {
     lines.push(`- **Target:** ${targetUrl}`);
     lines.push(`- **Duration:** ${mins} min`);
     lines.push(`- **Captured events:** ${total}`);
-    lines.push(`- **Secret findings:** ${state.secrets}`);
+    lines.push(`- **Secret findings:** ${state.secrets}${state.heapSecrets ? ` (${state.heapSecrets} from heap diff)` : ''}`);
     lines.push(`- **WASM modules dumped:** ${state.wasmDumped}`);
+    if (state.heapDiffs) lines.push(`- **Heap diffs run:** ${state.heapDiffs}`);
     lines.push(`- **Log:** ${sessionLogFile}`);
     lines.push('');
     lines.push(`## Events by type`);
@@ -73,7 +80,7 @@ function printSummary(targetUrl, logFile) {
     console.log(`\n${C.bold}==================== SESSION SUMMARY ====================${C.reset}`);
     const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
     const mins = ((Date.now() - state.startedAt) / 60000).toFixed(1);
-    console.log(`Target: ${targetUrl}  |  ${mins} min  |  ${total} events  |  ${state.secrets} secrets  |  ${state.wasmDumped} wasm`);
+    console.log(`Target: ${targetUrl}  |  ${mins} min  |  ${total} events  |  ${state.secrets} secrets  |  ${state.wasmDumped} wasm${state.heapDiffs ? `  |  ${state.heapDiffs} heap diff(s)` : ''}`);
     const top = topUrls(5);
     if (top.length) {
         console.log(`${C.dim}Top URLs:${C.reset}`);
@@ -91,6 +98,8 @@ function resetSummary() {
     state.urls = new Map();
     state.secrets = 0;
     state.wasmDumped = 0;
+    state.heapDiffs = 0;
+    state.heapSecrets = 0;
 }
 
-module.exports = { trackEvent, trackSecret, trackWasmDump, renderSummary, printSummary, resetSummary };
+module.exports = { trackEvent, trackSecret, trackWasmDump, trackHeapDiff, renderSummary, printSummary, resetSummary };

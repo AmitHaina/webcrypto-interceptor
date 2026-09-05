@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { C } = require('./src/util/colors');
-const { writeLog, closeLog, setLogDir, getLogFile } = require('./src/util/log');
+const { closeLog, setLogDir, getLogFile } = require('./src/util/log');
 const { shortUrl } = require('./src/util/decoders');
 const { attachToSession } = require('./src/cdp/session');
 const { setExtractDir, getExtractDir } = require('./src/cdp/extract');
@@ -64,6 +64,9 @@ function resolveChromePath() {
     console.log(`🖥️  MODE: ${opts.gui ? 'GUI (Headful)' : 'Headless'}${opts.full ? ' + FULL EXTRACT' : ''}`);
     if (opts.proxy) console.log(`🛰️  PROXY: ${opts.proxy}`);
     if (opts.allTraffic) console.log(`🎧 FILTER: disabled (--all-traffic)`);
+    const hookCount = opts.hooks.length + opts.hookReturns.length;
+    if (hookCount) console.log(`🪝 HOOKS: ${hookCount} (${opts.hookReturns.length} with return capture)`);
+    if (opts.heapDiff > 0) console.log(`🧠 HEAP DIFF: ${opts.heapDiff}s after load`);
     let extractDir = null;
     if (opts.full) {
         extractDir = setExtractDir(targetUrl, opts.out);
@@ -87,6 +90,10 @@ function resolveChromePath() {
     const browser = await puppeteer.launch({
         headless: !opts.gui,
         executablePath: chromePath || undefined,
+        // Pipe transport: CDP runs over stdio fds instead of a WebSocket on
+        // --remote-debugging-port. Nothing listens on a TCP port for the
+        // target page (or anything else on the machine) to discover and scan.
+        pipe: true,
         args: launchArgs
     });
 
@@ -143,7 +150,8 @@ function resolveChromePath() {
 
     const mainClient = await page.target().createCDPSession();
     await applyUaOverride(mainClient);
-    await attachToSession(mainClient, `main:${shortUrl(targetUrl)}`, { getExtractDir });
+    const hookSpecs = [...opts.hooks, ...opts.hookReturns];
+    await attachToSession(mainClient, `main:${shortUrl(targetUrl)}`, { getExtractDir, hooks: hookSpecs });
 
     // ---- multi-target attach: iframes, OOPIFs, workers ----------------------
     // Workers (dedicated/shared/service) never see evaluateOnNewDocument and
@@ -179,7 +187,7 @@ function resolveChromePath() {
                 await childSession.send('Page.addScriptToEvaluateOnNewDocument', { source: hookCode }).catch(() => {});
             }
             await applyUaOverride(childSession);
-            await attachToSession(childSession, `${type}:${shortUrl(url)}`, { getExtractDir });
+            await attachToSession(childSession, `${type}:${shortUrl(url)}`, { getExtractDir, hooks: hookSpecs });
         } catch (e) {}
     }
     browser.on('targetcreated', tryAttachTarget);
@@ -211,5 +219,11 @@ function resolveChromePath() {
             } catch (e) {}
         }
     }
-    console.log(`\n${C.bold}🌟 STREAMING (Ctrl+C to stop). Interact with the page to trigger events. Watch for [🔓 CRYPTO BOUNDARY], [🌐 NET] and [💾 STORAGE STATE].${C.reset}\n`);
+    console.log(`\n${C.bold}🌟 STREAMING (Ctrl+C to stop). Interact with the page to trigger events. Watch for [🔓 CRYPTO BOUNDARY], [🌐 NET], [🪝 HOOK] and [💾 STORAGE STATE].${C.reset}\n`);
+
+    // ---- heap diff (after load, non-blocking) -------------------------------
+    if (opts.heapDiff > 0) {
+        const { runHeapDiff } = require('./src/cdp/heapdiff');
+        runHeapDiff(mainClient, `main:${shortUrl(targetUrl)}`, opts.heapDiff).catch(() => {});
+    }
 })();

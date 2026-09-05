@@ -6,11 +6,16 @@ export default [
         ignores: ['node_modules/', 'extracted_*/', 'wasm_modules/', 'dist/', 'coverage/']
     },
     {
+        // CommonJS language options apply to the tool's .js sources only —
+        // scoping them here keeps this .mjs config file itself lintable as ESM.
+        files: ['**/*.js'],
         languageOptions: {
             ecmaVersion: 2023,
             sourceType: 'commonjs',
             globals: {
                 console: 'readonly', process: 'readonly', Buffer: 'readonly',
+                __dirname: 'readonly', __filename: 'readonly', require: 'readonly',
+                module: 'writable', exports: 'writable',
                 window: 'readonly', navigator: 'readonly', document: 'readonly',
                 fetch: 'readonly', WebSocket: 'readonly', Worker: 'readonly',
                 MessagePort: 'readonly', WebAssembly: 'readonly', Storage: 'readonly',

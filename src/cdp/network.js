@@ -117,11 +117,9 @@ async function attachNetworkCapture(cdpSession) {
         if (!bodyObj.body) return;
 
         let body = bodyObj.body;
-        let rawBuf = null;
         if (bodyObj.base64Encoded) {
             try {
                 const buf = Buffer.from(bodyObj.body, 'base64');
-                rawBuf = buf;
                 const headers = response.headers || {};
                 const ct = String(headers['content-type'] || headers['Content-Type'] || '').toLowerCase();
                 const isTextCT = /text|json|xml|javascript|html|css|mpegurl|dash|urlencoded/.test(ct);
