@@ -10,6 +10,7 @@ Usage:
 
 Options:
   --gui                  Show the browser window (recommended: you can click around)
+  --brave                Use Brave browser instead of Chrome / Chromium
   --full                 Extract every script/response body to disk (site dump)
   --out <dir>            Base directory for the extract folder and session log (default: cwd)
   --timeout <seconds>    Page navigation timeout (default: 60)
@@ -36,6 +37,7 @@ Environment:
 
 Examples:
   node capture_server.js "https://example.com" --gui
+  node capture_server.js "https://example.com" --brave --gui
   node capture_server.js "https://example.com" --full --out ./dumps --timeout 90
   node capture_server.js "https://example.com" --hook "window.sign" --hook-return "window.buildPayload"
   node capture_server.js "https://example.com" --heap-diff 30
@@ -55,6 +57,7 @@ function parseArgv(argv) {
             args: argv,
             options: {
                 gui: { type: 'boolean', default: false },
+                brave: { type: 'boolean', default: false },
                 full: { type: 'boolean', default: false },
                 out: { type: 'string' },
                 timeout: { type: 'string', default: '60' },
@@ -106,6 +109,7 @@ function parseArgv(argv) {
         help: false,
         url,
         gui: parsed.values.gui,
+        brave: parsed.values.brave,
         full: parsed.values.full,
         out: parsed.values.out || process.cwd(),
         timeout: timeout * 1000,

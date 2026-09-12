@@ -36,10 +36,35 @@ if (opts.out) setLogDir(opts.out);
 
 const targetUrl = opts.url;
 
-// ---- chrome resolution ----------------------------------------------------
+// ---- browser resolution ---------------------------------------------------
 
-function resolveChromePath() {
+function resolveBrowserPath(preferBrave) {
     if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+
+    if (preferBrave) {
+        if (process.platform === 'win32') {
+            const candidates = [
+                'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+                'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+                process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe')
+            ].filter(Boolean);
+            for (const p of candidates) {
+                if (fs.existsSync(p)) return p;
+            }
+            return null;
+        }
+        if (process.platform === 'darwin') {
+            const p = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser';
+            if (fs.existsSync(p)) return p;
+            return null;
+        }
+        // Linux
+        for (const p of ['/usr/bin/brave-browser', '/snap/bin/brave', '/usr/bin/brave', '/usr/bin/brave-browser-stable']) {
+            if (fs.existsSync(p)) return p;
+        }
+        return null;
+    }
+
     if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     if (process.platform === 'darwin') return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     // Linux: try the common names before falling back to puppeteer's bundled build
@@ -58,10 +83,17 @@ function resolveChromePath() {
         console.error(`${C.red}puppeteer is not installed. Run: npm install${C.reset}`);
         process.exit(1);
     }
+    const browserPath = resolveBrowserPath(opts.brave);
+    if (opts.brave && !browserPath) {
+        console.error(`${C.red}Brave browser was not found at standard install locations. Specify PUPPETEER_EXECUTABLE_PATH to point to brave.exe${C.reset}`);
+        process.exit(1);
+    }
+
     console.log(`\n${C.bold}=============================================================${C.reset}`);
     console.log(`${C.bold}🤖 WEBCRYPTO-INTERCEPTOR${C.reset}`);
     console.log(`📡 TARGET: ${targetUrl}`);
     console.log(`🖥️  MODE: ${opts.gui ? 'GUI (Headful)' : 'Headless'}${opts.full ? ' + FULL EXTRACT' : ''}`);
+    if (opts.brave) console.log(`🦁 BROWSER: Brave (${browserPath})`);
     if (opts.proxy) console.log(`🛰️  PROXY: ${opts.proxy}`);
     if (opts.allTraffic) console.log(`🎧 FILTER: disabled (--all-traffic)`);
     const hookCount = opts.hooks.length + opts.hookReturns.length;
@@ -75,7 +107,6 @@ function resolveChromePath() {
     console.log(`📝 LOG: ${getLogFile()}`);
     console.log(`${C.bold}=============================================================${C.reset}\n`);
 
-    const chromePath = resolveChromePath();
     const launchArgs = [
         '--no-sandbox', '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
@@ -89,7 +120,7 @@ function resolveChromePath() {
 
     const browser = await puppeteer.launch({
         headless: !opts.gui,
-        executablePath: chromePath || undefined,
+        executablePath: browserPath || undefined,
         // Pipe transport: CDP runs over stdio fds instead of a WebSocket on
         // --remote-debugging-port. Nothing listens on a TCP port for the
         // target page (or anything else on the machine) to discover and scan.

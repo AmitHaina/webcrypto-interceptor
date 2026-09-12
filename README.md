@@ -38,10 +38,10 @@ cd webcrypto-interceptor
 npm install
 ```
 
-Requires **Node.js 18+** and Chrome installed locally. If Chrome is somewhere unusual, point at it:
+Requires **Node.js 18+** and Chrome or Brave installed locally. If your browser is somewhere unusual, point at it:
 
 ```bash
-PUPPETEER_EXECUTABLE_PATH="/path/to/chrome" node capture_server.js "https://example.com"
+PUPPETEER_EXECUTABLE_PATH="/path/to/browser" node capture_server.js "https://example.com"
 ```
 
 ---
@@ -55,6 +55,9 @@ node capture_server.js "https://example.com"
 # With visible browser (recommended — you can click around)
 node capture_server.js "https://example.com" --gui
 
+# Use Brave browser
+node capture_server.js "https://example.com" --brave --gui
+
 # Full site extraction (see below)
 node capture_server.js "https://example.com" --full --gui
 ```
@@ -66,6 +69,7 @@ Interact with the page. Watch the terminal for tagged events. Stop with `Ctrl+C`
 | Option | Meaning |
 |---|---|
 | `--gui` | Show the browser window |
+| `--brave` | Use Brave browser instead of Chrome / Chromium |
 | `--full` | Extract every script/response body to disk |
 | `--out <dir>` | Base directory for the extract folder and session log |
 | `--timeout <sec>` | Page navigation timeout (default 60) |

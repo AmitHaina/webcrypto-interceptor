@@ -6,9 +6,15 @@ test('parses basic URL', () => {
     const o = parseArgv(['https://example.com']);
     assert.equal(o.url, 'https://example.com');
     assert.equal(o.gui, false);
+    assert.equal(o.brave, false);
     assert.equal(o.full, false);
     assert.equal(o.allTraffic, false);
     assert.equal(o.timeout, 60000);
+});
+
+test('parses --brave flag', () => {
+    const o = parseArgv(['https://example.com', '--brave']);
+    assert.equal(o.brave, true);
 });
 
 test('parses flags and values', () => {
@@ -45,6 +51,7 @@ test('--help short-circuits', () => {
     const o = parseArgv(['--help']);
     assert.equal(o.help, true);
     assert.ok(HELP.includes('--gui'));
+    assert.ok(HELP.includes('--brave'));
     assert.ok(HELP.includes('webcrypto-interceptor'));
 });
 
