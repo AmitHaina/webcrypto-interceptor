@@ -59,6 +59,12 @@ test('structuredToLegacy preserves the [Reversed-Event] wire format', () => {
     });
     assert.equal(s, '[Reversed-Event] STORAGE [localStorage] set token = abc');
 
+    const cr = events.structuredToLegacy({
+        type: 'crypto_result',
+        data: { method: 'decrypt', result: '{"len":16,"hex":"aabb"}' }
+    });
+    assert.equal(cr, '[Reversed-Event] CRYPTO-RESULT decrypt {"len":16,"hex":"aabb"}');
+
     assert.equal(events.structuredToLegacy({ type: 'mystery', data: {} }), null);
 });
 
@@ -66,6 +72,10 @@ test('handleStructuredEvent consumes valid envelopes end-to-end', () => {
     const evt = { uid: 'e2e-1', type: 'crypto_args', data: { method: 'decrypt', args: '[{"name":"AES-CBC","iv":{"hex":"aabb"}}]' } };
     assert.equal(events.handleStructuredEvent(JSON.stringify(evt), 'test:target', () => null), true);
     assert.equal(events.handleStructuredEvent(JSON.stringify(evt), 'test:target', () => null), true, 'duplicate uid consumed silently');
+
+    const resEvt = { uid: 'e2e-2', type: 'crypto_result', data: { method: 'decrypt', result: '{"len":16,"hex":"aabb"}' } };
+    assert.equal(events.handleStructuredEvent(JSON.stringify(resEvt), 'test:target', () => null), true);
+
     assert.equal(events.handleStructuredEvent('not json', 't', () => null), false);
     assert.equal(events.handleStructuredEvent('{"no":"type"}', 't', () => null), false);
 });
@@ -73,6 +83,8 @@ test('handleStructuredEvent consumes valid envelopes end-to-end', () => {
 test('formatHookConsole keeps legacy tag rendering', () => {
     const out = events.formatHookConsole('[Reversed-Event] CRYPTO-ARGS encrypt [{"a":1}]');
     assert.ok(out.includes('CRYPTO ARGS'));
+    const resOut = events.formatHookConsole('[Reversed-Event] CRYPTO-RESULT decrypt {"hex":"aabb"}');
+    assert.ok(resOut.includes('CRYPTO RESULT'));
     const blob = events.formatHookConsole('[Reversed-Event] BLOB URL blob:x type=text/javascript size=10B');
     assert.ok(blob.includes('BLOB URL'));
 });

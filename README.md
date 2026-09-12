@@ -136,6 +136,7 @@ Not extracted: backend/server-side logic (it never reaches the browser), and ass
 |---|---|
 | `[🔓 CRYPTO BOUNDARY]` | A `crypto.subtle.*` call fired — native breakpoint hit, real call site shown |
 | `[🔓 CRYPTO ARGS]` | Page-side capture of `crypto.subtle` arguments (inputs, keys, IVs) |
+| `[🔓 CRYPTO RESULT]` | Resolved output of `crypto.subtle` calls (decrypted plaintext, digests, signatures) |
 | `[🔐 JSCRYPTO]` | Pure-JS crypto calls: CryptoJS, JSEncrypt, sjcl |
 | `[🎲 RANDOM]` | `crypto.getRandomValues` output (rate-limited) |
 | `[🌐 NET]` | Outbound fetch/XHR with body |

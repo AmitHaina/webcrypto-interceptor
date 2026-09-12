@@ -44,7 +44,8 @@
             case 'blob_content': return '[Reversed-Event] BLOB CONTENT ' + d.url + ': ' + d.snippet;
             case 'storage':      return '[Reversed-Event] STORAGE [' + d.storage + '] set ' + d.key + ' = ' + d.value;
             case 'random':       return '[Reversed-Event] CRYPTO-ARGS getRandomValues ' + d.raw;
-            case 'crypto_args':  return '[Reversed-Event] CRYPTO-ARGS ' + d.method + ' ' + d.args;
+            case 'crypto_args':   return '[Reversed-Event] CRYPTO-ARGS ' + d.method + ' ' + d.args;
+            case 'crypto_result': return '[Reversed-Event] CRYPTO-RESULT ' + d.method + ' ' + d.result;
             case 'jscrypto':     return '[Reversed-Event] JSCRYPTO-ARGS ' + d.label + ' ' + d.payload;
             case 'hook_init':    return '[Reversed-Event] JSCRYPTO-ARGS init ' + d.lib;
             case 'wasm':         return '[Reversed-Event] WASM WebAssembly.' + d.method + ' of ' + d.bytes + ' bytes hash=' + d.hash;
@@ -557,7 +558,19 @@
                             if (line.length > 4096) line = line.substring(0, 4096) + '...';
                             emit('crypto_args', { method: m, args: line });
                         } catch (e) {}
-                        return orig.apply(this, arguments);
+                        var res = orig.apply(this, arguments);
+                        if (res && typeof res.then === 'function') {
+                            res.then(function (resolved) {
+                                try {
+                                    var serialized = serializeArg(resolved);
+                                    var resLine;
+                                    try { resLine = JSON.stringify(serialized); } catch (e) { resLine = '[unserializable result]'; }
+                                    if (resLine && resLine.length > 4096) resLine = resLine.substring(0, 4096) + '...';
+                                    emit('crypto_result', { method: m, result: resLine });
+                                } catch (e) {}
+                            }).catch(function () {});
+                        }
+                        return res;
                     };
                     originalFunctions.set(wrapped, orig);
                     secureObject(wrapped, 'name', m, false);

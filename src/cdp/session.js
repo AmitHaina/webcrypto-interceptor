@@ -78,6 +78,8 @@ async function attachToSession(cdpSession, targetLabel, opts) {
 
     try { await cdpSession.send('Runtime.enable'); } catch (e) {}
     try { await cdpSession.send('Debugger.enable'); } catch (e) {}
+    try { await cdpSession.send('Debugger.setAsyncCallStackDepth', { maxDepth: 32 }); } catch (e) {}
+    try { await cdpSession.send('Page.setBypassCSP', { enabled: true }); } catch (e) {}
     await enableAntiDebug(cdpSession);
     await attachNetworkCapture(cdpSession);
     await attachScriptScanner(cdpSession);

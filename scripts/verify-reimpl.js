@@ -24,6 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveBrowserPath } = require('../src/util/browser');
 
 // ---- pure core (unit-tested) --------------------------------------------
 
@@ -78,7 +79,7 @@ function usage(code) {
 
 Usage:
   node scripts/verify-reimpl.js --session <file.jsonl> --label <hook> --candidate <file.js>
-                                [--input '<json-args-array>'] [--max-mismatches 5]
+                                [--brave] [--input '<json-args-array>'] [--max-mismatches 5]
 
   --session <file>       Session JSONL (from capture_server.js) containing
                          hook_pair events (capture with --hook-return).
@@ -87,6 +88,7 @@ Usage:
   --candidate <file>     JS file: module.exports = function (...args) { ... }
                          Runs in an isolated about:blank page — no network, no
                          access to the target site or its closures.
+  --brave                Run candidate evaluation in Brave browser
   --input <json>         Extra args array as a smoke test, e.g. '["zoe", 0]'.
                          Printed but NOT counted in the verdict.
   --max-mismatches <n>   Counterexamples to print (default 5).
@@ -96,12 +98,13 @@ Exit: 0 verified | 1 mismatches | 2 usage/no corpus | 3 runtime error`);
 }
 
 function parseCli(argv) {
-    const opts = { session: null, label: null, candidate: null, inputs: [], maxMismatches: 5 };
+    const opts = { session: null, label: null, candidate: null, inputs: [], maxMismatches: 5, brave: false };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--session') opts.session = argv[++i];
         else if (a === '--label') opts.label = argv[++i];
         else if (a === '--candidate') opts.candidate = argv[++i];
+        else if (a === '--brave') opts.brave = true;
         else if (a === '--input') opts.inputs.push(argv[++i]);
         else if (a === '--max-mismatches') opts.maxMismatches = parseInt(argv[++i], 10);
         else if (a === '--help' || a === '-h') usage(0);
@@ -156,7 +159,13 @@ async function main() {
         console.error('puppeteer is not installed. Run: npm install');
         process.exit(3);
     }
-    const browser = await puppeteer.launch({ headless: true, pipe: true, args: ['--no-sandbox'] });
+    const browserPath = resolveBrowserPath(opts.brave);
+    const browser = await puppeteer.launch({
+        headless: true,
+        executablePath: browserPath || undefined,
+        pipe: true,
+        args: ['--no-sandbox']
+    });
     try {
         const page = await browser.newPage();
         await page.goto('about:blank');

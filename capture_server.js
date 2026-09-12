@@ -36,43 +36,7 @@ if (opts.out) setLogDir(opts.out);
 
 const targetUrl = opts.url;
 
-// ---- browser resolution ---------------------------------------------------
-
-function resolveBrowserPath(preferBrave) {
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
-
-    if (preferBrave) {
-        if (process.platform === 'win32') {
-            const candidates = [
-                'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-                'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-                process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe')
-            ].filter(Boolean);
-            for (const p of candidates) {
-                if (fs.existsSync(p)) return p;
-            }
-            return null;
-        }
-        if (process.platform === 'darwin') {
-            const p = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser';
-            if (fs.existsSync(p)) return p;
-            return null;
-        }
-        // Linux
-        for (const p of ['/usr/bin/brave-browser', '/snap/bin/brave', '/usr/bin/brave', '/usr/bin/brave-browser-stable']) {
-            if (fs.existsSync(p)) return p;
-        }
-        return null;
-    }
-
-    if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    if (process.platform === 'darwin') return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-    // Linux: try the common names before falling back to puppeteer's bundled build
-    for (const p of ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium']) {
-        if (fs.existsSync(p)) return p;
-    }
-    return null; // no system chrome -> let puppeteer use its bundled one
-}
+const { resolveBrowserPath } = require('./src/util/browser');
 
 // ---- banner ---------------------------------------------------------------
 
@@ -155,8 +119,9 @@ function resolveBrowserPath(preferBrave) {
 
     // Hook source + per-target config prelude. The prelude lets the page-side
     // code read runtime flags (--all-traffic) without re-reading files.
+    // Uses globalThis/self so it never throws ReferenceError in worker scopes.
     const hookSource = fs.readFileSync(path.join(__dirname, 'src', 'page', 'stealth.js'), 'utf8');
-    const hookCode = `window.__WCI_CFG = ${JSON.stringify({ allTraffic: !!opts.allTraffic })};\n` + hookSource;
+    const hookCode = `(typeof globalThis !== 'undefined' ? globalThis : self).__WCI_CFG = ${JSON.stringify({ allTraffic: !!opts.allTraffic })};\n` + hookSource;
 
     await page.evaluateOnNewDocument(hookCode);
 
@@ -181,6 +146,7 @@ function resolveBrowserPath(preferBrave) {
 
     const mainClient = await page.target().createCDPSession();
     await applyUaOverride(mainClient);
+    try { await mainClient.send('Page.setBypassCSP', { enabled: true }); } catch (e) {}
     const hookSpecs = [...opts.hooks, ...opts.hookReturns];
     await attachToSession(mainClient, `main:${shortUrl(targetUrl)}`, { getExtractDir, hooks: hookSpecs });
 
@@ -215,6 +181,7 @@ function resolveBrowserPath(preferBrave) {
                     silent: true
                 }).catch(() => {});
             } else {
+                await childSession.send('Page.setBypassCSP', { enabled: true }).catch(() => {});
                 await childSession.send('Page.addScriptToEvaluateOnNewDocument', { source: hookCode }).catch(() => {});
             }
             await applyUaOverride(childSession);

@@ -58,6 +58,9 @@ function urlToFilePath(url) {
 // node_modules installed.
 function prettify(target, content) {
     if (Buffer.isBuffer(content)) return content;
+    // Guard: giant text bundles (>1MB) take seconds to beautify synchronously,
+    // starving the Node.js event loop and dropping CDP packets. Save as-is.
+    if (typeof content === 'string' && content.length > 1024 * 1024) return content;
     const ext = path.extname(target).toLowerCase();
     try {
         if (ext === '.js' || ext === '.css' || ext === '.html') {

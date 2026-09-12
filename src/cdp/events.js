@@ -68,10 +68,11 @@ const tagMap = {
     blob_content: (d) => [`${C.hlgrn}[📄 BLOB CONTENT]${C.reset}`, `${d.url}: ${d.snippet}`],
     storage:      (d) => [`${C.yellow}[💾 STORAGE STATE]${C.reset}`, `[${d.storage}] set ${d.key} = ${d.value}`],
     random:       (d) => [`${C.blue}[🎲 RANDOM]${C.reset}`, `getRandomValues ${d.t} len=${d.len} hex=${d.hex}`],
-    crypto_args:  (d) => [`${C.hlred}[🔓 CRYPTO ARGS]${C.reset}`, `${d.method} ${d.args}`],
-    jscrypto:     (d) => [`${C.hlred}[🔐 JSCRYPTO]${C.reset}`, `${d.label} ${d.payload}`],
-    hook_init:    (d) => [`${C.dim}[⚓ HOOK]${C.reset}`, d.lib],
-    wasm:         (d) => [`${C.magenta}[🧬 WASM INJECT]${C.reset}`, `WebAssembly.${d.method} of ${d.bytes} bytes hash=${d.hash}`]
+    crypto_args:   (d) => [`${C.hlred}[🔓 CRYPTO ARGS]${C.reset}`, `${d.method} ${d.args}`],
+    crypto_result: (d) => [`${C.hlred}[🔓 CRYPTO RESULT]${C.reset}`, `${d.method} \u2192 ${d.result}`],
+    jscrypto:      (d) => [`${C.hlred}[🔐 JSCRYPTO]${C.reset}`, `${d.label} ${d.payload}`],
+    hook_init:     (d) => [`${C.dim}[⚓ HOOK]${C.reset}`, d.lib],
+    wasm:          (d) => [`${C.magenta}[🧬 WASM INJECT]${C.reset}`, `WebAssembly.${d.method} of ${d.bytes} bytes hash=${d.hash}`]
 };
 
 function logStructured(evt, targetLabel) {
@@ -97,21 +98,22 @@ function logStructured(evt, targetLabel) {
 function structuredToLegacy(evt) {
     const d = evt.data || {};
     switch (evt.type) {
-        case 'fetch':        return `[Reversed-Event] ${d.video ? 'VIDEO' : 'fetch'} [${d.method || 'GET'}] ${d.url}${d.body ? ' body: ' + d.body : ''}`;
-        case 'xhr':          return `[Reversed-Event] ${d.video ? 'VIDEO' : 'XHR'} [${d.method || 'GET'}] ${d.url}${d.body ? ' body: ' + d.body : ''}`;
-        case 'beacon':       return `[Reversed-Event] sendBeacon ${d.url}${d.body ? ' body: ' + d.body : ''}`;
-        case 'ws_send':      return `[Reversed-Event] WebSocket [SEND] ${d.url} body: ${d.body}`;
-        case 'ws_recv':      return `[Reversed-Event] WebSocket [RECV] ${d.url} body: ${d.body}`;
-        case 'worker_msg':   return `[Reversed-Event] ${d.source === 'port' ? 'PORT' : 'WORKER'} postMessage: ${d.preview}`;
-        case 'blob_url':     return `[Reversed-Event] BLOB URL ${d.url} type=${d.type} size=${d.size}B`;
-        case 'blob_content': return `[Reversed-Event] BLOB CONTENT ${d.url}: ${d.snippet}`;
-        case 'storage':      return `[Reversed-Event] STORAGE [${d.storage}] set ${d.key} = ${d.value}`;
-        case 'random':       return `[Reversed-Event] CRYPTO-ARGS getRandomValues ${d.raw}`;
-        case 'crypto_args':  return `[Reversed-Event] CRYPTO-ARGS ${d.method} ${d.args}`;
-        case 'jscrypto':     return `[Reversed-Event] JSCRYPTO-ARGS ${d.label} ${d.payload}`;
-        case 'hook_init':    return `[Reversed-Event] JSCRYPTO-ARGS init ${d.lib}`;
-        case 'wasm':         return `[Reversed-Event] WASM WebAssembly.${d.method} of ${d.bytes} bytes hash=${d.hash}`;
-        default:             return null;
+        case 'fetch':         return `[Reversed-Event] ${d.video ? 'VIDEO' : 'fetch'} [${d.method || 'GET'}] ${d.url}${d.body ? ' body: ' + d.body : ''}`;
+        case 'xhr':           return `[Reversed-Event] ${d.video ? 'VIDEO' : 'XHR'} [${d.method || 'GET'}] ${d.url}${d.body ? ' body: ' + d.body : ''}`;
+        case 'beacon':        return `[Reversed-Event] sendBeacon ${d.url}${d.body ? ' body: ' + d.body : ''}`;
+        case 'ws_send':       return `[Reversed-Event] WebSocket [SEND] ${d.url} body: ${d.body}`;
+        case 'ws_recv':       return `[Reversed-Event] WebSocket [RECV] ${d.url} body: ${d.body}`;
+        case 'worker_msg':    return `[Reversed-Event] ${d.source === 'port' ? 'PORT' : 'WORKER'} postMessage: ${d.preview}`;
+        case 'blob_url':      return `[Reversed-Event] BLOB URL ${d.url} type=${d.type} size=${d.size}B`;
+        case 'blob_content':  return `[Reversed-Event] BLOB CONTENT ${d.url}: ${d.snippet}`;
+        case 'storage':       return `[Reversed-Event] STORAGE [${d.storage}] set ${d.key} = ${d.value}`;
+        case 'random':        return `[Reversed-Event] CRYPTO-ARGS getRandomValues ${d.raw}`;
+        case 'crypto_args':   return `[Reversed-Event] CRYPTO-ARGS ${d.method} ${d.args}`;
+        case 'crypto_result': return `[Reversed-Event] CRYPTO-RESULT ${d.method} ${d.result}`;
+        case 'jscrypto':      return `[Reversed-Event] JSCRYPTO-ARGS ${d.label} ${d.payload}`;
+        case 'hook_init':     return `[Reversed-Event] JSCRYPTO-ARGS init ${d.lib}`;
+        case 'wasm':          return `[Reversed-Event] WASM WebAssembly.${d.method} of ${d.bytes} bytes hash=${d.hash}`;
+        default:              return null;
     }
 }
 
@@ -148,7 +150,7 @@ function handleStructuredEvent(rawJson, targetLabel, extractDirGetter) {
 
     const urlForStats = evt.data && (evt.data.url || evt.data.endpoint) || null;
     trackEvent(evt.type, urlForStats);
-    if (evt.type === 'jscrypto' || evt.type === 'crypto_args') { /* counted by type */ }
+    if (evt.type === 'jscrypto' || evt.type === 'crypto_args' || evt.type === 'crypto_result') { /* counted by type */ }
     logStructured(evt, targetLabel);
 
     // Secrets can ride inside blob contents and crypto payloads.
@@ -168,6 +170,7 @@ function formatHookConsole(text) {
     const stripped = text.replace('[Reversed-Event] ', '');
     if (text.includes('PAYMENT-JSON')) return `${C.hlgrn}[💳 PAYMENT-JSON]${C.reset} ${C.green}${stripped.replace('PAYMENT-JSON: ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] CRYPTO-ARGS')) return `${C.hlred}[🔓 CRYPTO ARGS]${C.reset} ${C.green}${stripped.replace('CRYPTO-ARGS ', '')}${C.reset}`;
+    if (text.includes('[Reversed-Event] CRYPTO-RESULT')) return `${C.hlred}[🔓 CRYPTO RESULT]${C.reset} ${C.green}${stripped.replace('CRYPTO-RESULT ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] JSCRYPTO-ARGS')) return `${C.hlred}[🔐 JSCRYPTO]${C.reset} ${C.green}${stripped.replace('JSCRYPTO-ARGS ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] VIDEO')) return `${C.magenta}[🎬 VIDEO]${C.reset} ${C.green}${stripped.replace('VIDEO ', '')}${C.reset}`;
     if (text.includes('[Reversed-Event] WASM')) return `${C.magenta}[🧬 WASM INJECT]${C.reset} ${C.dim}${stripped}${C.reset}`;

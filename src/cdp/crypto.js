@@ -28,15 +28,30 @@ async function recordCryptoCall(cdpSession, params, bpMap, targetLabel) {
         return `   at ${f.functionName || '<anonymous>'} (${file}:${f.location.lineNumber + 1}:${f.location.columnNumber + 1})`;
     }).slice(0, 5).join('\n');
 
+    let asyncTrace = '';
+    const asyncStack = [];
+    let curAsync = params.asyncStackTrace;
+    while (curAsync && curAsync.callFrames && asyncStack.length < 5) {
+        const desc = curAsync.description || 'async';
+        for (const f of curAsync.callFrames) {
+            const file = f.url ? shortUrl(f.url) : '<anonymous>';
+            asyncTrace += `\n   [${desc}] at ${f.functionName || '<anonymous>'} (${file}:${(f.lineNumber || 0) + 1}:${(f.columnNumber || 0) + 1})`;
+            asyncStack.push({ fn: f.functionName, url: f.url, line: f.lineNumber, col: f.columnNumber, async: desc });
+            if (asyncStack.length >= 5) break;
+        }
+        curAsync = curAsync.parent;
+    }
+
     console.log(`\n${C.hlred}[🔓 CRYPTO BOUNDARY] ${method}${C.reset} in ${C.magenta}${targetLabel}${C.reset} called by ${C.yellow}${callerName}${C.reset}`);
-    console.log(`${C.dim}${stackTrace}${C.reset}`);
+    console.log(`${C.dim}${stackTrace}${asyncTrace}${C.reset}`);
 
     writeLog({
         type: 'crypto_call',
         method,
         target: targetLabel,
         caller: callerName,
-        stack: displayFrames.map(f => ({ fn: f.functionName, url: f.url, line: f.location.lineNumber, col: f.location.columnNumber }))
+        stack: displayFrames.map(f => ({ fn: f.functionName, url: f.url, line: f.location.lineNumber, col: f.location.columnNumber })),
+        asyncStack: asyncStack.length ? asyncStack : undefined
     });
 }
 
