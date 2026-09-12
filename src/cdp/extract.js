@@ -118,13 +118,129 @@ function saveFile(url, content, scriptId) {
         }
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, prettify(target, content));
+        // Opportunistic sourcemap detection & recovery in the background
+        handleSourcemap(url, content).catch(() => {});
     } catch (e) { if (process.env.EXTRACT_DEBUG) console.error('saveFile ERR', url, e.message); }
+}
+
+const SOURCEMAP_RE = /(?:\/\/|\/\*)[#@] sourceMappingURL=([^\s*]+)/;
+const seenMaps = new Set();
+
+function cleanSourcePath(srcPath) {
+    if (!srcPath || typeof srcPath !== 'string') return null;
+    let p = srcPath.replace(/^(webpack|webpack-internal|rollup|vite|turbopack|file):\/\/?/i, '');
+    p = p.replace(/^\[[^\]]+\]\//, '');
+    p = p.split('?')[0].split('#')[0];
+    p = p.replace(/\\/g, '/');
+    p = p.replace(/^[a-zA-Z]:\//, '');
+    const segs = p.split('/')
+        .filter(s => s && s !== '.' && s !== '..')
+        .map(s => s.replace(/[<>:"/\\|?*]/g, '_'))
+        .map(s => /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(s) ? '_' + s : s);
+    if (!segs.length) return null;
+    return path.join(...segs);
+}
+
+function unpackSourcemap(mapData, baseUrl, targetDir) {
+    if (!mapData || !Array.isArray(mapData.sources)) return 0;
+    const sources = mapData.sources;
+    const contents = Array.isArray(mapData.sourcesContent) ? mapData.sourcesContent : [];
+    if (!contents.length) return 0;
+
+    let hostDir = 'sources';
+    try {
+        if (baseUrl && /^https?:\/\//i.test(baseUrl)) {
+            hostDir = new URL(baseUrl).hostname;
+        }
+    } catch (e) {}
+
+    let count = 0;
+    for (let i = 0; i < sources.length; i++) {
+        const srcPath = sources[i];
+        const srcContent = contents[i];
+        if (!srcContent || typeof srcContent !== 'string') continue;
+
+        const rel = cleanSourcePath(srcPath);
+        if (!rel) continue;
+
+        const dest = path.join(targetDir, '_sources', hostDir, rel);
+        try {
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.writeFileSync(dest, srcContent, 'utf8');
+            count++;
+        } catch (e) {}
+    }
+    return count;
+}
+
+async function handleSourcemap(url, content) {
+    if (!extractDir) return;
+    const text = Buffer.isBuffer(content) ? content.toString('utf8') : String(content || '');
+    if (!text.includes('sourceMappingURL')) return;
+
+    const m = text.match(SOURCEMAP_RE);
+    if (!m) return;
+    const mapRef = m[1].trim();
+    if (!mapRef) return;
+
+    let mapJson = null;
+    if (mapRef.startsWith('data:')) {
+        try {
+            if (mapRef.includes('base64,')) {
+                mapJson = Buffer.from(mapRef.split('base64,')[1], 'base64').toString('utf8');
+            } else if (mapRef.includes(',')) {
+                mapJson = decodeURIComponent(mapRef.split(',')[1]);
+            }
+        } catch (e) { return; }
+    } else {
+        if (!url || !/^https?:\/\//i.test(url)) return;
+        let mapUrl;
+        try {
+            mapUrl = new URL(mapRef, url).href;
+        } catch (e) { return; }
+
+        if (seenMaps.has(mapUrl)) return;
+        seenMaps.add(mapUrl);
+
+        try {
+            const resp = await fetch(mapUrl, { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) return;
+            mapJson = await resp.text();
+            saveFile(mapUrl, mapJson);
+        } catch (e) { return; }
+    }
+
+    if (!mapJson) return;
+    try {
+        const mapData = JSON.parse(mapJson);
+        const count = unpackSourcemap(mapData, url, extractDir);
+        if (count > 0) {
+            const { C } = require('../util/colors');
+            const { shortUrl } = require('../util/decoders');
+            const { trackSourcesRecovered } = require('../util/summary');
+            const { writeLog } = require('../util/log');
+            trackSourcesRecovered(count);
+            console.log(`\n${C.hlgrn}[🗺️  SOURCEMAP]${C.reset} Recovered ${count} original source file(s) from ${C.cyan}${shortUrl(url || 'script')}${C.reset} \u2192 ${C.dim}_sources/${C.reset}`);
+            writeLog({ type: 'sourcemap_recovered', url, filesRecovered: count });
+        }
+    } catch (e) {}
 }
 
 // Test hook: clear per-session collision state.
 function resetExtractState() {
     pathByUrl.clear();
     usedPaths.clear();
+    seenMaps.clear();
 }
 
-module.exports = { setExtractDir, getExtractDir, saveFile, isExtracting: () => !!extractDir, urlToFilePath, resetExtractState };
+module.exports = {
+    setExtractDir,
+    getExtractDir,
+    saveFile,
+    isExtracting: () => !!extractDir,
+    urlToFilePath,
+    cleanSourcePath,
+    unpackSourcemap,
+    handleSourcemap,
+    resetExtractState
+};

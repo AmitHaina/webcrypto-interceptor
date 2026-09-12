@@ -10,7 +10,8 @@ const state = {
     secrets: 0,
     wasmDumped: 0,
     heapDiffs: 0,
-    heapSecrets: 0
+    heapSecrets: 0,
+    sourcesRecovered: 0
 };
 
 const MAX_URLS = 500;
@@ -32,6 +33,7 @@ function trackSecret(fromHeap) {
 }
 function trackWasmDump() { state.wasmDumped++; }
 function trackHeapDiff() { state.heapDiffs++; }
+function trackSourcesRecovered(n) { state.sourcesRecovered += (n || 0); }
 
 function topUrls(n) {
     return [...state.urls.entries()]
@@ -50,6 +52,7 @@ function renderSummary(targetUrl, sessionLogFile) {
     lines.push(`- **Captured events:** ${total}`);
     lines.push(`- **Secret findings:** ${state.secrets}${state.heapSecrets ? ` (${state.heapSecrets} from heap diff)` : ''}`);
     lines.push(`- **WASM modules dumped:** ${state.wasmDumped}`);
+    if (state.sourcesRecovered) lines.push(`- **Original source files recovered (sourcemaps):** ${state.sourcesRecovered}`);
     if (state.heapDiffs) lines.push(`- **Heap diffs run:** ${state.heapDiffs}`);
     lines.push(`- **Log:** ${sessionLogFile}`);
     lines.push('');
@@ -80,7 +83,7 @@ function printSummary(targetUrl, logFile) {
     console.log(`\n${C.bold}==================== SESSION SUMMARY ====================${C.reset}`);
     const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
     const mins = ((Date.now() - state.startedAt) / 60000).toFixed(1);
-    console.log(`Target: ${targetUrl}  |  ${mins} min  |  ${total} events  |  ${state.secrets} secrets  |  ${state.wasmDumped} wasm${state.heapDiffs ? `  |  ${state.heapDiffs} heap diff(s)` : ''}`);
+    console.log(`Target: ${targetUrl}  |  ${mins} min  |  ${total} events  |  ${state.secrets} secrets  |  ${state.wasmDumped} wasm${state.sourcesRecovered ? `  |  ${state.sourcesRecovered} src files from maps` : ''}${state.heapDiffs ? `  |  ${state.heapDiffs} heap diff(s)` : ''}`);
     const top = topUrls(5);
     if (top.length) {
         console.log(`${C.dim}Top URLs:${C.reset}`);
@@ -100,6 +103,7 @@ function resetSummary() {
     state.wasmDumped = 0;
     state.heapDiffs = 0;
     state.heapSecrets = 0;
+    state.sourcesRecovered = 0;
 }
 
-module.exports = { trackEvent, trackSecret, trackWasmDump, trackHeapDiff, renderSummary, printSummary, resetSummary };
+module.exports = { trackEvent, trackSecret, trackWasmDump, trackHeapDiff, trackSourcesRecovered, renderSummary, printSummary, resetSummary };

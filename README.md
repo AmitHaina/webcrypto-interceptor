@@ -114,10 +114,11 @@ The verdict is a structured diff with concrete counterexamples — `matched: 41/
 
 ## `--full` — extract a site's frontend code
 
-Dumps the page's actual HTML/CSS/JS to disk instead of just logging events. Three layers, saved to `extracted_<host>_<timestamp>/`:
+Dumps the page's actual HTML/CSS/JS to disk instead of just logging events. Four layers, saved to `extracted_<host>_<timestamp>/`:
 
 - **Raw responses** — every network response body (HTML, CSS, JS, JSON/API), saved mirroring each URL's own path. URLs that collide on the same path (e.g. `?v=1` vs `?v=2`) get a short hash suffix instead of overwriting each other.
 - **Script sources** — every script V8 parses: external files, inline `<script>` blocks, `eval()`/`new Function` strings, webpack chunks — saved under `_inline/` when there's no real URL to mirror.
+- **Original sources (`_sources/`)** — automatic sourcemap recovery. When a script references a `.js.map` file or contains an inline sourcemap, the tool automatically fetches and unpacks the developer's original TypeScript/ES6 source tree (`src/`, components, and utilities) with original variable names.
 - **`_rendered.html`** — a snapshot of `document.documentElement` after the page finishes loading (saved even when navigation times out but the page is usable). This is what actually matches what you see on screen for JS-heavy/SPA sites, where the raw `index.html` is just an empty shell before React/Vue/Nuxt hydrates it.
 
 ```bash
@@ -137,6 +138,7 @@ Not extracted: backend/server-side logic (it never reaches the browser), and ass
 | `[🔓 CRYPTO BOUNDARY]` | A `crypto.subtle.*` call fired — native breakpoint hit, real call site shown |
 | `[🔓 CRYPTO ARGS]` | Page-side capture of `crypto.subtle` arguments (inputs, keys, IVs) |
 | `[🔓 CRYPTO RESULT]` | Resolved output of `crypto.subtle` calls (decrypted plaintext, digests, signatures) |
+| `[🗺️ SOURCEMAP]` | Original source files recovered and unpacked from a sourcemap |
 | `[🔐 JSCRYPTO]` | Pure-JS crypto calls: CryptoJS, JSEncrypt, sjcl |
 | `[🎲 RANDOM]` | `crypto.getRandomValues` output (rate-limited) |
 | `[🌐 NET]` | Outbound fetch/XHR with body |

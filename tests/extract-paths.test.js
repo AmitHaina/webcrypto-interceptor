@@ -78,3 +78,35 @@ test('isExtracting toggles with setExtractDir', () => {
     assert.ok(extract.isExtracting());
     extract.resetExtractState();
 });
+
+test('cleanSourcePath strips prefixes, queries and blocks traversal', () => {
+    assert.equal(extract.cleanSourcePath('webpack:///src/index.ts'), path.join('src', 'index.ts'));
+    assert.equal(extract.cleanSourcePath('webpack://[name]/src/utils/crypto.js?hash=123'), path.join('src', 'utils', 'crypto.js'));
+    assert.equal(extract.cleanSourcePath('vite:///./src/components/App.vue'), path.join('src', 'components', 'App.vue'));
+    assert.equal(extract.cleanSourcePath('../../../etc/passwd'), path.join('etc', 'passwd'));
+    assert.equal(extract.cleanSourcePath('C:/Users/dev/project/src/main.js'), path.join('Users', 'dev', 'project', 'src', 'main.js'));
+    assert.equal(extract.cleanSourcePath(''), null);
+    assert.equal(extract.cleanSourcePath(null), null);
+});
+
+test('unpackSourcemap restores original source files to disk', () => {
+    extract.setExtractDir('https://example.com', tmpDir);
+    const mapData = {
+        version: 3,
+        sources: ['webpack:///src/auth.ts', 'webpack:///src/config.json'],
+        sourcesContent: [
+            'export function getAuthToken() { return "secret"; }',
+            '{"env": "production"}'
+        ]
+    };
+    const count = extract.unpackSourcemap(mapData, 'https://example.com/assets/app.js', extract.getExtractDir());
+    assert.equal(count, 2);
+
+    const authFile = path.join(extract.getExtractDir(), '_sources', 'example.com', 'src', 'auth.ts');
+    assert.ok(fs.existsSync(authFile));
+    assert.equal(fs.readFileSync(authFile, 'utf8'), 'export function getAuthToken() { return "secret"; }');
+
+    const configFile = path.join(extract.getExtractDir(), '_sources', 'example.com', 'src', 'config.json');
+    assert.ok(fs.existsSync(configFile));
+    assert.equal(fs.readFileSync(configFile, 'utf8'), '{"env": "production"}');
+});
