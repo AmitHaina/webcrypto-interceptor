@@ -3,7 +3,7 @@
 // deliberately for maximum scope compatibility).
 export default [
     {
-        ignores: ['node_modules/', 'extracted_*/', 'wasm_modules/', 'dist/', 'coverage/']
+        ignores: ['node_modules/', 'extracted_*/', '*_extracted_*/', 'wasm_modules/', 'dist/', 'coverage/']
     },
     {
         // CommonJS language options apply to the tool's .js sources only —
@@ -21,7 +21,7 @@ export default [
                 MessagePort: 'readonly', WebAssembly: 'readonly', Storage: 'readonly',
                 XMLHttpRequest: 'readonly', URL: 'readonly', Blob: 'readonly',
                 FormData: 'readonly', ArrayBuffer: 'readonly', Uint8Array: 'readonly',
-                CryptoKey: 'readonly', TextDecoder: 'readonly', localStorage: 'readonly',
+                CryptoKey: 'readonly', TextDecoder: 'readonly', AbortSignal: 'readonly', localStorage: 'readonly',
                 sessionStorage: 'readonly', WeakMap: 'readonly', Proxy: 'readonly',
                 Reflect: 'readonly', Object: 'readonly', JSON: 'readonly',
                 Math: 'readonly', Date: 'readonly', Promise: 'readonly', Set: 'readonly',

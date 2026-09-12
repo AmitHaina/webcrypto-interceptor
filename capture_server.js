@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { C } = require('./src/util/colors');
-const { closeLog, setLogDir, getLogFile } = require('./src/util/log');
+const { closeLog, setLogDir, getLogFile, startTerminalCapture, stopTerminalCapture } = require('./src/util/log');
 const { shortUrl } = require('./src/util/decoders');
 const { attachToSession } = require('./src/cdp/session');
 const { setExtractDir, getExtractDir } = require('./src/cdp/extract');
@@ -32,9 +32,17 @@ if (opts.help) {
     process.exit(0);
 }
 
-if (opts.out) setLogDir(opts.out);
-
 const targetUrl = opts.url;
+
+let extractDir = null;
+let terminalFile = null;
+if (opts.full) {
+    extractDir = setExtractDir(targetUrl, opts.out);
+    setLogDir(extractDir);
+    terminalFile = startTerminalCapture(extractDir);
+} else if (opts.out) {
+    setLogDir(opts.out);
+}
 
 const { resolveBrowserPath } = require('./src/util/browser');
 
@@ -63,10 +71,9 @@ const { resolveBrowserPath } = require('./src/util/browser');
     const hookCount = opts.hooks.length + opts.hookReturns.length;
     if (hookCount) console.log(`🪝 HOOKS: ${hookCount} (${opts.hookReturns.length} with return capture)`);
     if (opts.heapDiff > 0) console.log(`🧠 HEAP DIFF: ${opts.heapDiff}s after load`);
-    let extractDir = null;
-    if (opts.full) {
-        extractDir = setExtractDir(targetUrl, opts.out);
+    if (extractDir) {
         console.log(`📦 FULL EXTRACT: ${extractDir}`);
+        console.log(`📄 TERMINAL: ${terminalFile}`);
     }
     console.log(`📝 LOG: ${getLogFile()}`);
     console.log(`${C.bold}=============================================================${C.reset}\n`);
@@ -99,6 +106,7 @@ const { resolveBrowserPath } = require('./src/util/browser');
         shuttingDown = true;
         console.log(`\n${C.yellow}Shutting down (${signal})...${C.reset}`);
         printSummary(targetUrl, getLogFile());
+        try { await stopTerminalCapture(); } catch (e) {}
         try { await closeLog(); } catch (e) {}
         try { await browser.close(); } catch (e) {}
         process.exit(0);
@@ -109,6 +117,7 @@ const { resolveBrowserPath } = require('./src/util/browser');
         if (!shuttingDown) {
             console.log(`\n${C.yellow}Browser disconnected. Exiting.${C.reset}`);
             printSummary(targetUrl, getLogFile());
+            try { await stopTerminalCapture(); } catch (e) {}
             try { await closeLog(); } catch (e) {}
             process.exit(0);
         }
@@ -224,4 +233,9 @@ const { resolveBrowserPath } = require('./src/util/browser');
         const { runHeapDiff } = require('./src/cdp/heapdiff');
         runHeapDiff(mainClient, `main:${shortUrl(targetUrl)}`, opts.heapDiff).catch(() => {});
     }
-})();
+})().catch(async (e) => {
+    console.error(`\n${C.red}Fatal error:${C.reset} ${e.message || e}`);
+    try { await stopTerminalCapture(); } catch (_) {}
+    try { await closeLog(); } catch (_) {}
+    process.exit(1);
+});

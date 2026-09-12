@@ -114,8 +114,12 @@ The verdict is a structured diff with concrete counterexamples — `matched: 41/
 
 ## `--full` — extract a site's frontend code
 
-Dumps the page's actual HTML/CSS/JS to disk instead of just logging events. Four layers, saved to `extracted_<host>_<timestamp>/`:
+Dumps the page's actual HTML/CSS/JS and all session artifacts into a single consolidated folder starting with the target site name: `<host>_extracted_<timestamp>/`:
 
+- **Consolidated session output** — everything from the run lands inside this site folder:
+  - `terminal_output.txt`: complete terminal response captured automatically in clean plain text (ANSI colors stripped) — no manual copying needed.
+  - `session_capture_<timestamp>.jsonl`: raw structured CDP session event log.
+  - `session_capture_<timestamp>_summary.md`: markdown breakdown of captured events, secrets, WASM modules, and top URLs.
 - **Raw responses** — every network response body (HTML, CSS, JS, JSON/API), saved mirroring each URL's own path. URLs that collide on the same path (e.g. `?v=1` vs `?v=2`) get a short hash suffix instead of overwriting each other.
 - **Script sources** — every script V8 parses: external files, inline `<script>` blocks, `eval()`/`new Function` strings, webpack chunks — saved under `_inline/` when there's no real URL to mirror.
 - **Original sources (`_sources/`)** — automatic sourcemap recovery. When a script references a `.js.map` file or contains an inline sourcemap, the tool automatically fetches and unpacks the developer's original TypeScript/ES6 source tree (`src/`, components, and utilities) with original variable names.

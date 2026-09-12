@@ -7,6 +7,9 @@ node_modules/
 *.har
 response.txt
 extracted_*/
+*_extracted_*/
+terminal_output.txt
+pirateplaycc*
 wasm_modules/
 *_summary.md
 

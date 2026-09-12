@@ -11,8 +11,13 @@ const { URL } = require('url');
 let extractDir = null;
 
 function setExtractDir(targetUrl, baseDir) {
-    const host = new URL(targetUrl).hostname;
-    extractDir = path.join(baseDir || process.cwd(), `extracted_${host}_${Date.now()}`);
+    let host = 'site';
+    try {
+        const u = new URL(targetUrl);
+        host = u.hostname || 'site';
+    } catch (e) {}
+    host = host.replace(/[<>:"/\\|?*]/g, '_');
+    extractDir = path.join(baseDir || process.cwd(), `${host}_extracted_${Date.now()}`);
     fs.mkdirSync(extractDir, { recursive: true });
     return extractDir;
 }
@@ -228,6 +233,7 @@ async function handleSourcemap(url, content) {
 
 // Test hook: clear per-session collision state.
 function resetExtractState() {
+    extractDir = null;
     pathByUrl.clear();
     usedPaths.clear();
     seenMaps.clear();

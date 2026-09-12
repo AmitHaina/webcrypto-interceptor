@@ -74,9 +74,18 @@ test('query-differing URLs do not overwrite each other; same URL does', () => {
     assert.deepStrictEqual(contents, ['one-updated', 'two']);
 });
 
+test('setExtractDir places site hostname first in directory name', () => {
+    const dir = extract.setExtractDir('https://piratexplay.cc/player/v/8', tmpDir);
+    const basename = path.basename(dir);
+    assert.ok(basename.startsWith('piratexplay.cc_extracted_'), `expected ${basename} to start with piratexplay.cc_extracted_`);
+    assert.ok(fs.existsSync(dir));
+});
+
 test('isExtracting toggles with setExtractDir', () => {
+    extract.setExtractDir('https://site.example', tmpDir);
     assert.ok(extract.isExtracting());
     extract.resetExtractState();
+    assert.equal(extract.isExtracting(), false);
 });
 
 test('cleanSourcePath strips prefixes, queries and blocks traversal', () => {

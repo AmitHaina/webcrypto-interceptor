@@ -1,6 +1,7 @@
 // Session summary: counts every captured event by type, tracks top URLs and
 // secret findings, and renders a markdown report printed at shutdown and
 // saved next to the session log.
+const fs = require('fs');
 const { C } = require('./colors');
 
 const state = {
@@ -91,7 +92,13 @@ function printSummary(targetUrl, logFile) {
             console.log(`  ${C.dim}${String(hits).padStart(4)}  ${url.substring(0, 90)}${C.reset}`);
         }
     }
-    console.log(`${C.dim}Full report: ${sessionLogFile.replace(/\.jsonl$/, '_summary.md')}${C.reset}`);
+    const reportPath = sessionLogFile.replace(/\.jsonl$/, '_summary.md');
+    if (logFile && typeof logFile === 'string' && logFile.endsWith('.jsonl')) {
+        try {
+            fs.writeFileSync(reportPath, renderSummary(targetUrl, logFile), 'utf8');
+        } catch (e) {}
+    }
+    console.log(`${C.dim}Full report: ${reportPath}${C.reset}`);
     console.log(`${C.bold}==========================================================${C.reset}\n`);
 }
 
