@@ -59,3 +59,13 @@ test('no false positive on short random strings', () => {
     const f = scanForSecrets(`var x = 'short', y = "1234";`);
     assert.deepStrictEqual(f, []);
 });
+
+test('detects secrets obfuscated inside Dean Edwards packed code', () => {
+    // Encoded version of: var secret = { apiKey: '0123456789abcdef0123456789abcdef' };
+    const packed = "eval(function(p,a,c,k,e,d){return p}('0 1 = { 2: \\'3\\' };',10,4,'var|secret|apiKey|0123456789abcdef0123456789abcdef'.split('|'),0,{}))";
+    const findings = scanForSecrets(packed);
+    assert.ok(findings.length > 0, 'should detect packed secret');
+    assert.equal(findings[0].type, 'HARDCODED_apiKey');
+    assert.equal(findings[0].value, '0123456789abcdef0123456789abcdef');
+});
+

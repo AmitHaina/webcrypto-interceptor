@@ -1,7 +1,8 @@
 const { C } = require('../util/colors');
 const { writeLog } = require('../util/log');
-const { extractContentKey, extractHlsKeyUri } = require('../util/decoders');
+const { extractContentKey, extractHlsKeyUri, isPacked, unpack } = require('../util/decoders');
 const { scanForSecrets, reportSecrets } = require('../util/secrets');
+const { trackContentKey, trackRawAesKey, trackHlsKey, trackManifest } = require('../util/summary');
 const { RESP_KEYWORDS, SKIP_RESP_EXT, SKIP_RESP_CT } = require('../config');
 const { saveFile, isExtracting } = require('./extract');
 
@@ -27,6 +28,18 @@ function isKeyOrManifest(url, ctHeader) {
     return /\.key(\?|$)/i.test(url)
         || /mpegurl|dash\+xml|application\/mpd/i.test(ctHeader)
         || /vnd\.apple\.mpegurl/i.test(ctHeader);
+}
+
+// Media segments (.ts, .m4s, .mp4, etc.) can be hundreds of megabytes during video
+// playback. Skipping them in --full body dumping avoids memory bloat and pipe stalling
+// while manifests and encryption keys are always preserved.
+function isMediaSegment(url, ctHeader) {
+    if (isKeyOrManifest(url, ctHeader)) return false;
+    if (/\.(ts|m4s|m4v|mp4|webm|m4a|aac|mp3|flac)(\?|$)/i.test(url)) return true;
+    if (/^(video|audio)\/(?!x-mpegurl)/i.test(ctHeader) && !/mpegurl|dash\+xml|application\/mpd/i.test(ctHeader)) {
+        return true;
+    }
+    return false;
 }
 
 async function attachNetworkCapture(cdpSession) {
@@ -93,9 +106,15 @@ async function attachNetworkCapture(cdpSession) {
             } catch (e) {}
         }
 
-        // --full mode: save every response body to disk regardless of the
-        // "interesting" filters below — this is what makes it a site dump.
-        if (isExtracting()) {
+        // Track manifests in session summary
+        if (/\.m3u8(\?|$)/i.test(lower) || /mpegurl/i.test(ctHeader)) {
+            trackManifest({ type: 'hls_manifest', url });
+        } else if (/\.mpd(\?|$)/i.test(lower) || /dash\+xml|application\/mpd/i.test(ctHeader)) {
+            trackManifest({ type: 'dash_manifest', url });
+        }
+
+        // --full mode: save response body to disk, skipping binary media chunks (.ts/.m4s) to prevent bloat
+        if (isExtracting() && !isMediaSegment(lower, ctHeader)) {
             try {
                 const full = await getBody();
                 if (full && full.body) {
@@ -138,6 +157,7 @@ async function attachNetworkCapture(cdpSession) {
                     if ([16, 24, 32].includes(buf.length)) {
                         console.log(`   ${C.hlred}\ud83d\udd11 RAW AES KEY (${buf.length * 8}-bit): ${body}${C.reset}`);
                         writeLog({ type: 'raw_aes_key', url, bits: buf.length * 8, hex: body });
+                        trackRawAesKey({ bits: buf.length * 8, hex: body, url });
                     }
                 } else {
                     body = buf.toString('utf8');
@@ -148,20 +168,29 @@ async function attachNetworkCapture(cdpSession) {
             }
         }
 
+        let scanText = body;
+        if (isPacked(body)) {
+            scanText = unpack(body);
+            console.log(`   ${C.cyan}📦 UNPACKED Dean Edwards packer (${body.length}B → ${scanText.length}B)${C.reset}`);
+            writeLog({ type: 'packer_unpacked', url, originalLength: body.length, unpackedLength: scanText.length });
+        }
+
         // Also scan interesting response bodies for secrets (JWTs in responses etc.)
-        const respFindings = scanForSecrets(body, url);
+        const respFindings = scanForSecrets(scanText, url);
         if (respFindings.length) reportSecrets(respFindings, url);
 
-        const ck = extractContentKey(body);
+        const ck = extractContentKey(scanText);
         if (ck) {
             console.log(`   ${C.hlred}\ud83d\udd11 CONTENT KEY (${ck.field}): ${ck.decoded}${C.reset}`);
             writeLog({ type: 'content_key', url, field: ck.field, raw: ck.raw, decoded: ck.decoded });
+            trackContentKey({ field: ck.field, raw: ck.raw, decoded: ck.decoded, url });
         }
 
-        const hls = extractHlsKeyUri(body);
+        const hls = extractHlsKeyUri(scanText);
         if (hls) {
             console.log(`   ${C.hlred}\ud83d\udd10 HLS AES KEY URI: ${hls.keyUri}${hls.iv ? '  IV=' + hls.iv : ''}${C.reset}`);
             writeLog({ type: 'hls_key_ref', url, keyUri: hls.keyUri, iv: hls.iv });
+            trackHlsKey({ keyUri: hls.keyUri, iv: hls.iv, url });
         }
 
         const preview = body.length > 1500 ? body.substring(0, 1500) + '...' : body;
@@ -170,4 +199,4 @@ async function attachNetworkCapture(cdpSession) {
     });
 }
 
-module.exports = { attachNetworkCapture };
+module.exports = { attachNetworkCapture, isMediaSegment };

@@ -113,6 +113,8 @@ function resolveTarget(url) {
 // sources (saved under _inline/).
 function saveFile(url, content, scriptId) {
     if (!extractDir) return;
+    // Skip raw media segment chunks to avoid memory and disk bloat
+    if (url && /\.(ts|m4s|m4v|mp4|webm|m4a|aac|mp3|flac)(\?|$)/i.test(url)) return;
     try {
         let target;
         if (url) {
@@ -123,6 +125,43 @@ function saveFile(url, content, scriptId) {
         }
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, prettify(target, content));
+
+        const { trackExtractedFile } = require('../util/summary');
+        trackExtractedFile(target);
+
+        // If content is obfuscated with Dean Edwards packer, auto-unpack and save .unpacked companion
+        const text = Buffer.isBuffer(content) ? null : (typeof content === 'string' ? content : null);
+        if (text) {
+            const { isPacked, unpack, extractContentKey } = require('../util/decoders');
+            if (isPacked(text)) {
+                try {
+                    const unpacked = unpack(text);
+                    if (unpacked && unpacked !== text) {
+                        const ext = path.extname(target) || '.js';
+                        const base = target.substring(0, target.length - ext.length);
+                        const unpackedTarget = `${base}.unpacked${ext}`;
+                        fs.writeFileSync(unpackedTarget, prettify(unpackedTarget, unpacked));
+                        trackExtractedFile(unpackedTarget);
+
+                        // Scan unpacked file for secrets and content keys
+                        const { scanForSecrets, reportSecrets } = require('../util/secrets');
+                        const findings = scanForSecrets(unpacked, url || 'inline');
+                        if (findings.length) reportSecrets(findings, url || 'inline');
+
+                        const ck = extractContentKey(unpacked);
+                        if (ck) {
+                            const { C } = require('../util/colors');
+                            const { writeLog } = require('../util/log');
+                            const { trackContentKey } = require('../util/summary');
+                            console.log(`   ${C.hlred}🔑 CONTENT KEY (${ck.field}) from unpacked: ${ck.decoded}${C.reset}`);
+                            writeLog({ type: 'content_key', url: url || 'inline', field: ck.field, raw: ck.raw, decoded: ck.decoded });
+                            trackContentKey({ field: ck.field, raw: ck.raw, decoded: ck.decoded, url: url || '' });
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
         // Opportunistic sourcemap detection & recovery in the background
         handleSourcemap(url, content).catch(() => {});
     } catch (e) { if (process.env.EXTRACT_DEBUG) console.error('saveFile ERR', url, e.message); }
@@ -172,6 +211,8 @@ function unpackSourcemap(mapData, baseUrl, targetDir) {
         try {
             fs.mkdirSync(path.dirname(dest), { recursive: true });
             fs.writeFileSync(dest, srcContent, 'utf8');
+            const { trackExtractedFile } = require('../util/summary');
+            trackExtractedFile(dest);
             count++;
         } catch (e) {}
     }

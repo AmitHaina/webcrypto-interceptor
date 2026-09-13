@@ -4,7 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const log = require('../src/util/log');
-const { printSummary, trackEvent, resetSummary } = require('../src/util/summary');
+const {
+    printSummary, trackEvent, resetSummary, writeExtractedSummary,
+    trackContentKey, trackRawAesKey, trackHlsKey, trackSecretFinding,
+    trackManifest, trackWasmDump, trackExtractedFile
+} = require('../src/util/summary');
 
 let tmpDir;
 before(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wci-log-test-')); });
@@ -68,3 +72,33 @@ test('printSummary writes markdown summary report next to log file', () => {
     assert.ok(content.includes('https://example.com'));
     assert.ok(content.includes('crypto_subtle'));
 });
+
+test('writeExtractedSummary generates structured extracted_summary.json with crypto, secrets, manifests, wasm and files', () => {
+    const extractDir = path.join(tmpDir, 'extract_summary_dir');
+    fs.mkdirSync(extractDir, { recursive: true });
+
+    trackContentKey({ field: 'ck', decoded: '0123456789abcdef', url: 'https://example.com/player' });
+    trackRawAesKey({ bits: 128, hex: 'deadbeefdeadbeefdeadbeefdeadbeef', url: 'https://example.com/key.bin' });
+    trackHlsKey({ keyUri: 'https://example.com/stream.key', iv: '0x1234', url: 'https://example.com/master.m3u8' });
+    trackSecretFinding({ type: 'JWT', value: 'eyJ...', url: 'https://example.com/bundle.js' });
+    trackManifest({ type: 'hls_manifest', url: 'https://example.com/master.m3u8' });
+    trackWasmDump({ file: 'wasm/module_abc.wasm', hash: 'abc', size: 1024 });
+    trackExtractedFile(path.join(extractDir, 'index.html'));
+    trackExtractedFile(path.join(extractDir, 'bundle.js'));
+
+    const summaryPath = writeExtractedSummary(extractDir, 'https://example.com');
+    assert.ok(fs.existsSync(summaryPath));
+    const data = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+
+    assert.equal(data.target, 'https://example.com');
+    assert.equal(data.crypto.contentKeys[0].decoded, '0123456789abcdef');
+    assert.equal(data.crypto.rawAesKeys[0].hex, 'deadbeefdeadbeefdeadbeefdeadbeef');
+    assert.equal(data.crypto.hlsKeys[0].keyUri, 'https://example.com/stream.key');
+    assert.equal(data.secrets[0].type, 'JWT');
+    assert.equal(data.manifests[0].url, 'https://example.com/master.m3u8');
+    assert.equal(data.wasmModules[0].hash, 'abc');
+    assert.equal(data.files.total, 2);
+    assert.equal(data.files.byExtension['.html'], 1);
+    assert.equal(data.files.byExtension['.js'], 1);
+});
+

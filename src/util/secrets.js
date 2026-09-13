@@ -8,6 +8,7 @@
 
 const { C } = require('./colors');
 const { writeLog } = require('./log');
+const { isPacked, unpack } = require('./decoders');
 
 const seenSecrets = new Set();
 const MAX_SEEN = 20000;
@@ -23,9 +24,24 @@ function noteSeen(sig) {
     return false;
 }
 
-function scanForSecrets(body /* , url */) {
+function scanForSecrets(body, sourceUrl) {
     const findings = [];
     if (!body || typeof body !== 'string') return findings;
+
+    // Auto-unpack Dean Edwards packed code if detected
+    if (isPacked(body)) {
+        try {
+            const unpacked = unpack(body);
+            if (unpacked && unpacked !== body) {
+                const unpackedFindings = scanForSecrets(unpacked, sourceUrl);
+                for (const uf of unpackedFindings) {
+                    if (!findings.some(f => f.type === uf.type && f.value === uf.value)) {
+                        findings.push(uf);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
 
     // 1. PEM public/private keys (RSA, EC, DSA, or generic)
     const pemRe = /-----BEGIN (?:RSA |EC |DSA )?(PUBLIC|PRIVATE) KEY-----([\s\S]{20,4000}?)-----END (?:RSA |EC |DSA )?\1 KEY-----/g;
@@ -78,6 +94,10 @@ function reportSecrets(findings, sourceUrl) {
         const preview = f.value.length > 400 ? f.value.substring(0, 400) + '...' : f.value;
         console.log(`${C.hlred}[\ud83d\udd11 SECRET] ${f.type}${C.reset} in ${C.dim}${sourceUrl}${C.reset}\n   ${C.green}${preview}${C.reset}`);
         writeLog({ type: 'secret_found', kind: f.type, url: sourceUrl, value: f.value });
+        try {
+            const { trackSecretFinding } = require('./summary');
+            trackSecretFinding({ type: f.type, value: f.value, url: sourceUrl });
+        } catch (e) {}
     }
 }
 

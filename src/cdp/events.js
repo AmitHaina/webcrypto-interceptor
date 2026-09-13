@@ -126,7 +126,11 @@ function dumpWasmFromHex(hash, hex, extractDirGetter) {
         fs.mkdirSync(targetDir, { recursive: true });
         const wasmPath = path.join(targetDir, `module_${hash}.wasm`);
         fs.writeFileSync(wasmPath, buf);
-        trackWasmDump();
+        trackWasmDump({
+            file: path.relative(extractDirGetter() || process.cwd(), wasmPath).replace(/\\/g, '/'),
+            hash,
+            size: buf.length
+        });
         console.log(`${C.magenta}[🧬 WASM DUMPED]${C.reset} Saved WebAssembly module (${buf.length} bytes) to ${wasmPath}`);
     } catch (e) {
         console.error('Failed to save WASM module:', e.message);

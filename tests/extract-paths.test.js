@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const extract = require('../src/cdp/extract');
+const { isMediaSegment } = require('../src/cdp/network');
 
 let tmpDir;
 before(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wci-extract-')); });
@@ -119,3 +120,39 @@ test('unpackSourcemap restores original source files to disk', () => {
     assert.ok(fs.existsSync(configFile));
     assert.equal(fs.readFileSync(configFile, 'utf8'), '{"env": "production"}');
 });
+
+test('isMediaSegment identifies media chunks while protecting manifests and keys', () => {
+    assert.equal(isMediaSegment('https://example.com/chunk_0.ts', 'video/mp2t'), true);
+    assert.equal(isMediaSegment('https://example.com/segment.m4s', 'video/iso.segment'), true);
+    assert.equal(isMediaSegment('https://example.com/stream.mp4', 'video/mp4'), true);
+
+    // Manifests and keys must NEVER be classified as media segments
+    assert.equal(isMediaSegment('https://example.com/playlist.m3u8', 'application/vnd.apple.mpegurl'), false);
+    assert.equal(isMediaSegment('https://example.com/manifest.mpd', 'application/dash+xml'), false);
+    assert.equal(isMediaSegment('https://example.com/enc.key', 'application/octet-stream'), false);
+    assert.equal(isMediaSegment('https://example.com/api/key?id=1', 'application/octet-stream'), false);
+});
+
+test('saveFile creates .unpacked companion for Dean Edwards packed scripts', () => {
+    extract.resetExtractState();
+    extract.setExtractDir('https://example.com', tmpDir);
+    const packed = "eval(function(p,a,c,k,e,d){return p}('0 1=\"2\";',10,3,'var|myKey|secretVal'.split('|'),0,{}))";
+    extract.saveFile('https://example.com/js/player.js', packed);
+
+    const origPath = path.join(extract.getExtractDir(), 'example.com', 'js', 'player.js');
+    const unpackedPath = path.join(extract.getExtractDir(), 'example.com', 'js', 'player.unpacked.js');
+
+    assert.ok(fs.existsSync(origPath), 'original packed file must exist');
+    assert.ok(fs.existsSync(unpackedPath), 'unpacked companion file must exist');
+    const unpackedContent = fs.readFileSync(unpackedPath, 'utf8');
+    assert.ok(unpackedContent.includes('myKey') && unpackedContent.includes('secretVal'));
+});
+
+test('saveFile skips binary media chunk URLs (.ts, .m4s) to avoid bloat', () => {
+    extract.resetExtractState();
+    extract.setExtractDir('https://example.com', tmpDir);
+    extract.saveFile('https://example.com/hls/segment_001.ts', Buffer.from('fake-video-bytes'));
+    const chunkPath = path.join(extract.getExtractDir(), 'example.com', 'hls', 'segment_001.ts');
+    assert.equal(fs.existsSync(chunkPath), false, 'media chunk must be skipped');
+});
+

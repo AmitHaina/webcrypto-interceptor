@@ -15,7 +15,7 @@ const { closeLog, setLogDir, getLogFile, startTerminalCapture, stopTerminalCaptu
 const { shortUrl } = require('./src/util/decoders');
 const { attachToSession } = require('./src/cdp/session');
 const { setExtractDir, getExtractDir } = require('./src/cdp/extract');
-const { printSummary } = require('./src/util/summary');
+const { printSummary, writeExtractedSummary } = require('./src/util/summary');
 const { parseArgv, HELP } = require('./src/cli');
 
 // ---- CLI ----------------------------------------------------------------
@@ -106,6 +106,12 @@ const { resolveBrowserPath } = require('./src/util/browser');
         shuttingDown = true;
         console.log(`\n${C.yellow}Shutting down (${signal})...${C.reset}`);
         printSummary(targetUrl, getLogFile());
+        if (extractDir) {
+            try {
+                const sumFile = writeExtractedSummary(extractDir, targetUrl);
+                if (sumFile) console.log(`${C.dim}Extracted summary: ${sumFile}${C.reset}`);
+            } catch (e) {}
+        }
         try { await stopTerminalCapture(); } catch (e) {}
         try { await closeLog(); } catch (e) {}
         try { await browser.close(); } catch (e) {}
@@ -117,6 +123,12 @@ const { resolveBrowserPath } = require('./src/util/browser');
         if (!shuttingDown) {
             console.log(`\n${C.yellow}Browser disconnected. Exiting.${C.reset}`);
             printSummary(targetUrl, getLogFile());
+            if (extractDir) {
+                try {
+                    const sumFile = writeExtractedSummary(extractDir, targetUrl);
+                    if (sumFile) console.log(`${C.dim}Extracted summary: ${sumFile}${C.reset}`);
+                } catch (e) {}
+            }
             try { await stopTerminalCapture(); } catch (e) {}
             try { await closeLog(); } catch (e) {}
             process.exit(0);
@@ -223,6 +235,9 @@ const { resolveBrowserPath } = require('./src/util/browser');
                 const rendered = await page.content();
                 fs.writeFileSync(path.join(extractDir, '_rendered.html'), rendered);
                 console.log(`${C.dim}(rendered DOM saved to _rendered.html)${C.reset}`);
+            } catch (e) {}
+            try {
+                writeExtractedSummary(extractDir, targetUrl);
             } catch (e) {}
         }
     }

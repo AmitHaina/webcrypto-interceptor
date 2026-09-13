@@ -1,7 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-    shortUrl, decodeHexEscapes, tryBase64ToHex, extractContentKey, extractHlsKeyUri
+    shortUrl, decodeHexEscapes, tryBase64ToHex, extractContentKey, extractHlsKeyUri,
+    isPacked, unpack, decodeBase
 } = require('../src/util/decoders');
 
 test('shortUrl strips protocol and truncates', () => {
@@ -79,3 +80,49 @@ test('extractHlsKeyUri handles missing IV', () => {
 test('extractHlsKeyUri returns null without EXT-X-KEY', () => {
     assert.equal(extractHlsKeyUri('#EXTM3U\n#EXTINF:10,\nseg1.ts'), null);
 });
+
+test('decodeHexEscapes handles multiple backslashes (JSON-escaped hex)', () => {
+    assert.equal(decodeHexEscapes('\\\\\\\\x41\\\\\\\\x42'), 'AB');
+    assert.equal(decodeHexEscapes('\\\\x43\\\\x44'), 'CD');
+});
+
+test('decodeBase handles decimal, base36, and base62 correctly', () => {
+    assert.equal(decodeBase('10', 10), 10);
+    assert.equal(decodeBase('a', 16), 10);
+    assert.equal(decodeBase('z', 36), 35);
+    // Base 62: 0-9 (0-9), a-z (10-35), A-Z (36-61)
+    assert.equal(decodeBase('A', 62), 36);
+    assert.equal(decodeBase('Z', 62), 61);
+    assert.equal(decodeBase('10', 62), 62);
+    assert.equal(decodeBase('1d', 62), 75);
+    assert.equal(decodeBase('!!', 62), -1);
+});
+
+test('isPacked detects Dean Edwards packer patterns', () => {
+    assert.equal(isPacked('function(p,a,c,k,e,d){return p}'), true);
+    assert.equal(isPacked('eval(function(p,a,c,k,e,r){return p})'), true);
+    assert.equal(isPacked('console.log("hello world");'), false);
+    assert.equal(isPacked(null), false);
+});
+
+test('unpack decompresses Dean Edwards packed JavaScript safely', () => {
+    // Standard Dean Edwards packed block:
+    // payload: '0 1="2";'
+    // radix: 10, count: 3
+    // symtab: 'var|key|secret'
+    const packed = "eval(function(p,a,c,k,e,d){while(c--)if(k[c])p=p.replace(new RegExp('\\\\b'+e(c)+'\\\\b','g'),k[c]);return p}('0 1=\"2\";',10,3,'var|key|secret'.split('|'),0,{}))";
+    const unpacked = unpack(packed);
+    assert.equal(unpacked, 'var key="secret";');
+});
+
+test('unpack recovers obfuscated content keys from real-world streaming embed format', () => {
+    // Real pattern from streaming video embed:
+    const packed = "eval(function(p,a,c,k,e,d){return p}('{\"1\":\"\\\\\\\\x33\\\\\\\\x37\\\\\\\\x35\\\\\\\\x31\\\\\\\\x35\\\\\\\\x38\"}',10,2,'|ck'.split('|'),0,{}))";
+    const unpacked = unpack(packed);
+    assert.ok(unpacked.includes('"ck"'));
+    const ck = extractContentKey(unpacked);
+    assert.ok(ck);
+    assert.equal(ck.field, 'ck');
+    assert.equal(ck.decoded, '375158');
+});
+
